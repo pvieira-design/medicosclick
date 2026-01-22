@@ -1,0 +1,24 @@
+{
+  "name": "@clickmedicos/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@clickmedicos/db": "*",
+    "@clickmedicos/env": "*",
+    "better-auth": "^1.4.9",
+    "dotenv": "^17.2.2",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@clickmedicos/config": "*",
+    "typescript": "^5"
+  }
+}

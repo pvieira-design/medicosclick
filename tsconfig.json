@@ -1,0 +1,3 @@
+{
+  "extends": "@clickmedicos/config/tsconfig.base.json"
+}

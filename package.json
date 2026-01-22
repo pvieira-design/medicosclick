@@ -1,0 +1,31 @@
+{
+  "name": "clickmedicos",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "check-types": "npm run check-types --workspaces",
+    "dev:native": "npm run dev --workspace native",
+    "dev:web": "npm run dev --workspace web",
+    "db:push": "npm run db:push --workspace @clickmedicos/db",
+    "db:studio": "npm run db:studio --workspace @clickmedicos/db",
+    "db:generate": "npm run db:generate --workspace @clickmedicos/db",
+    "db:migrate": "npm run db:migrate --workspace @clickmedicos/db"
+  },
+  "dependencies": {
+    "@clickmedicos/env": "*",
+    "dotenv": "^17.2.2",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@clickmedicos/config": "*",
+    "@types/node": "^22.13.14",
+    "typescript": "^5"
+  },
+  "packageManager": "npm@10.8.2"
+}
