@@ -87,7 +87,7 @@ export default function CancelamentosClient() {
       trpcClient.aprovacoes.aprovarCancelamento.mutate(input),
     onSuccess: () => {
       toast.success("Cancelamento aprovado. Strike aplicado ao medico.");
-      queryClient.invalidateQueries({ queryKey: ['aprovacoes', 'listarCancelamentos'] });
+      queryClient.invalidateQueries();
       setIsApproveOpen(false);
       setSelectedId(null);
     },
@@ -101,7 +101,7 @@ export default function CancelamentosClient() {
       trpcClient.aprovacoes.rejeitarCancelamento.mutate(input),
     onSuccess: () => {
       toast.success("Solicitacao de cancelamento rejeitada.");
-      queryClient.invalidateQueries({ queryKey: ['aprovacoes', 'listarCancelamentos'] });
+      queryClient.invalidateQueries();
       setIsRejectOpen(false);
       setSelectedId(null);
       setRejectionReason("");

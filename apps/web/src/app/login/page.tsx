@@ -1,13 +1,9 @@
 "use client";
 
-import { useState } from "react";
-
 import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
-import { ClickLogo, ClickLogoIcon } from "@/components/icons/click-logo";
+import { ClickLogoIcon } from "@/components/icons/click-logo";
 
 export default function LoginPage() {
-  const [showSignIn, setShowSignIn] = useState(true);
 
   return (
     <div className="min-h-screen flex">
@@ -100,11 +96,7 @@ export default function LoginPage() {
 
           {/* Form Card with Animation */}
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {showSignIn ? (
-              <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-            ) : (
-              <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-            )}
+            <SignInForm />
           </div>
         </div>
       </div>

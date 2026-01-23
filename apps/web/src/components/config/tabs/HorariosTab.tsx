@@ -61,7 +61,7 @@ export function HorariosTab() {
     mutationFn: (input: HorariosFuncionamento) =>
       trpcClient.config.updateHorariosFuncionamento.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries();
       toast.success("Horarios atualizados com sucesso!");
       setConfirmOpen(false);
     },

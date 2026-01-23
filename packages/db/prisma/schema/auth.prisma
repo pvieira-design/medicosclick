@@ -13,6 +13,7 @@ model User {
   tipo          UserTipo  @default(medico)
   ativo         Boolean   @default(true)
   clickDoctorId Int?      @unique  // ID na tabela doctors do Click
+  crm           String?            // CRM do médico (ex: "12345-SP")
   
   // Campos do medico
   faixa         Faixa     @default(P5)

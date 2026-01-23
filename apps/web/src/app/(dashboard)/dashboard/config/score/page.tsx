@@ -4,36 +4,40 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { trpc, trpcClient, queryClient } from "@/utils/trpc";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Calculator, TrendingUp, DollarSign } from "lucide-react";
+import { ArrowLeft, Save, Calculator, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/config/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
-interface PesosScore {
+interface ScoreConfig {
   conversao: number;
   ticketMedio: number;
+  semanasCalculo: number;
 }
 
-const DEFAULT_PESOS: PesosScore = {
+const DEFAULT_CONFIG: ScoreConfig = {
   conversao: 0.66,
   ticketMedio: 0.34,
+  semanasCalculo: 8,
 };
 
 export default function ScoreConfigPage() {
-  const [formData, setFormData] = useState<PesosScore>(DEFAULT_PESOS);
+  const [formData, setFormData] = useState<ScoreConfig>(DEFAULT_CONFIG);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: configData, isLoading } = useQuery(trpc.config.getAll.queryOptions());
 
   const updateMutation = useMutation({
-    mutationFn: (input: PesosScore) => trpcClient.config.updatePesosScore.mutate(input),
+    mutationFn: (input: ScoreConfig) => trpcClient.config.updatePesosScore.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["config"] });
-      toast.success("Pesos do score atualizados!");
+      queryClient.invalidateQueries();
+      toast.success("Configuracoes do score atualizadas!");
       setConfirmOpen(false);
     },
     onError: (error) => {
@@ -43,16 +47,22 @@ export default function ScoreConfigPage() {
 
   useEffect(() => {
     if (configData?.pesos_score) {
-      setFormData(configData.pesos_score as PesosScore);
+      const data = configData.pesos_score as Partial<ScoreConfig>;
+      setFormData({
+        conversao: data.conversao ?? DEFAULT_CONFIG.conversao,
+        ticketMedio: data.ticketMedio ?? DEFAULT_CONFIG.ticketMedio,
+        semanasCalculo: data.semanasCalculo ?? DEFAULT_CONFIG.semanasCalculo,
+      });
     }
   }, [configData]);
 
   const handleConversaoChange = (value: number[]) => {
     const conversao = value[0] / 100;
-    setFormData({
+    setFormData((prev) => ({
+      ...prev,
       conversao,
       ticketMedio: Math.round((1 - conversao) * 100) / 100,
-    });
+    }));
   };
 
   const handleSubmit = () => {
@@ -92,6 +102,52 @@ export default function ScoreConfigPage() {
           Salvar Alteracoes
         </Button>
       </div>
+
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader className="bg-muted/5 border-b border-border/40 pb-4">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            Periodo de Calculo
+          </CardTitle>
+          <CardDescription>
+            Defina quantas semanas serao consideradas para calcular as metricas dos medicos
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shadow-sm ring-1 ring-purple-100">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div>
+                <Label htmlFor="semanasCalculo" className="font-semibold text-base">
+                  Semanas para Calculo
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Periodo retroativo para analise de conversao e ticket medio
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <Input
+                id="semanasCalculo"
+                type="number"
+                min={1}
+                max={52}
+                value={formData.semanasCalculo}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value) && value >= 1 && value <= 52) {
+                    setFormData((prev) => ({ ...prev, semanasCalculo: value }));
+                  }
+                }}
+                className="w-20 text-center font-semibold text-lg"
+              />
+              <span className="text-muted-foreground font-medium">semanas</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2 border-border/50 shadow-sm">
@@ -156,10 +212,11 @@ export default function ScoreConfigPage() {
                   value={[ticketPercent]}
                   onValueChange={(value) => {
                     const ticket = value[0] / 100;
-                    setFormData({
+                    setFormData((prev) => ({
+                      ...prev,
                       ticketMedio: ticket,
                       conversao: Math.round((1 - ticket) * 100) / 100,
-                    });
+                    }));
                   }}
                   min={0}
                   max={100}

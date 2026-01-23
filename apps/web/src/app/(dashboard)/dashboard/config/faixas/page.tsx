@@ -65,7 +65,7 @@ export default function FaixasConfigPage() {
   const updateMutation = useMutation({
     mutationFn: (input: FaixasConfig) => trpcClient.config.updateFaixas.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries();
       toast.success("Faixas atualizadas com sucesso!");
       setConfirmOpen(false);
     },

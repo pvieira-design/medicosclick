@@ -92,9 +92,7 @@ export default function MyRequestsPage() {
     ...trpc.solicitacoes.cancelarPendente.mutationOptions(),
     onSuccess: () => {
       toast.success("Solicitação cancelada com sucesso");
-      queryClient.invalidateQueries({
-        queryKey: trpc.medico.minhasSolicitacoes.queryKey(),
-      });
+      queryClient.invalidateQueries();
     },
     onError: (error) => {
       toast.error(`Erro ao cancelar: ${error.message}`);

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm() {
   const router = useRouter();
   const { isPending } = authClient.useSession();
 
@@ -161,25 +161,6 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           </form.Subscribe>
         </form>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">ou</span>
-          </div>
-        </div>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Ainda nao tem uma conta?{" "}
-          <button
-            type="button"
-            onClick={onSwitchToSignUp}
-            className="font-semibold text-primary hover:text-primary/80 hover:underline transition-colors"
-          >
-            Criar conta
-          </button>
-        </p>
       </CardContent>
     </Card>
   );

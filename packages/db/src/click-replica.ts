@@ -85,6 +85,19 @@ export const clickQueries = {
       [doctorId]
     ),
 
+  // Query para SINCRONIZACAO - traz todos os medicos (so exclui teste/sem nome)
+  getTodosMedicos: () =>
+    query<MedicoClick>(
+      `SELECT d.id as doctor_id, d.user_id, u.email, d.name, u.phone, d.crm
+       FROM doctors d
+       LEFT JOIN users u ON u.id = d.user_id
+       WHERE d.name IS NOT NULL 
+         AND d.name NOT ILIKE '%teste%'
+         AND d.name NOT ILIKE '%test%'
+       ORDER BY d.name`
+    ),
+
+  // Query para CALCULO DE SCORE - apenas medicos ativos com agenda
   getMedicosAtivos: () =>
     query<MedicoClick>(
       `SELECT d.id as doctor_id, d.user_id, u.email, d.name, u.phone, d.crm
@@ -97,6 +110,32 @@ export const clickQueries = {
          AND d.schedule IS NOT NULL 
          AND d.schedule != '{}'
        ORDER BY d.name`
+    ),
+
+  getDiagnosticoMedicos: () =>
+    query<{
+      total_doctors: number;
+      sem_nome: number;
+      nome_teste: number;
+      priority_zero_ou_negativo: number;
+      sem_schedule: number;
+      schedule_vazio: number;
+      ativos_final: number;
+    }>(
+      `SELECT 
+        (SELECT COUNT(*) FROM doctors) AS total_doctors,
+        (SELECT COUNT(*) FROM doctors WHERE name IS NULL) AS sem_nome,
+        (SELECT COUNT(*) FROM doctors WHERE name ILIKE '%teste%' OR name ILIKE '%test%') AS nome_teste,
+        (SELECT COUNT(*) FROM doctors WHERE priority <= 0) AS priority_zero_ou_negativo,
+        (SELECT COUNT(*) FROM doctors WHERE schedule IS NULL) AS sem_schedule,
+        (SELECT COUNT(*) FROM doctors WHERE schedule = '{}') AS schedule_vazio,
+        (SELECT COUNT(*) FROM doctors d
+         WHERE d.name IS NOT NULL 
+           AND d.name NOT ILIKE '%teste%'
+           AND d.name NOT ILIKE '%test%'
+           AND d.priority > 0
+           AND d.schedule IS NOT NULL 
+           AND d.schedule != '{}') AS ativos_final`
     ),
 
   getConsultasDoDia: (data: string) =>

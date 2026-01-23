@@ -171,6 +171,7 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
     perPage: 10,
     tipo: type === "medico" ? ("medico" as const) : staffTypeFilter,
     faixa: type === "medico" && faixaFilter !== "all" ? (faixaFilter as FaixaType) : undefined,
+    search: search.trim() || undefined,
   };
 
   const { data: usersData, isLoading: usersLoading } = useQuery(trpc.usuarios.listar.queryOptions(queryInput));
@@ -179,7 +180,7 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
     mutationFn: (input: { userId: string; ativo: boolean }) =>
       trpcClient.usuarios.alterarStatus.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       toast.success("Status atualizado com sucesso");
     },
   });
@@ -188,7 +189,7 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
     mutationFn: (input: { userId: string; faixa: FaixaType }) =>
       trpcClient.usuarios.alterarFaixa.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       toast.success("Faixa atualizada com sucesso");
     },
   });
@@ -197,7 +198,7 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
     mutationFn: (input: { userId: string }) =>
       trpcClient.usuarios.resetarStrikes.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       toast.success("Strikes resetados com sucesso");
     },
   });
@@ -213,15 +214,16 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        {/* We don't have search in API yet, so this is visual only for now or client side filtering if we had all data */}
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Buscar por nome..." 
+            placeholder="Buscar por nome, email ou CRM..." 
             className="pl-8" 
             value={search} 
-            onChange={(e) => setSearch(e.target.value)}
-            disabled // Disabled until API supports search
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         
@@ -360,16 +362,21 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
 
 function ImportDoctors() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showDiagnostico, setShowDiagnostico] = useState(false);
   const queryClient = useQueryClient();
   
   const { data: doctors, isLoading } = useQuery(trpc.usuarios.getMedicosClick.queryOptions());
+  const { data: diagnostico, isLoading: diagLoading } = useQuery({
+    ...trpc.usuarios.diagnosticoMedicosClick.queryOptions(),
+    enabled: showDiagnostico,
+  });
   
   const importMutation = useMutation({
     mutationFn: (input: { doctorIds: number[] }) =>
       trpcClient.usuarios.importarMedicos.mutate(input),
     onSuccess: (data: { importados: number; ignorados: number }) => {
       toast.success(`${data.importados} médicos importados com sucesso!`);
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       setSelectedIds([]);
     },
     onError: (error: { message: string }) => {
@@ -486,7 +493,7 @@ function CreateStaffDialog() {
       setEmail("");
       setPassword("");
       setTipo("atendente");
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
     },
     onError: (error: { message: string }) => {
       toast.error(`Erro ao criar staff: ${error.message}`);

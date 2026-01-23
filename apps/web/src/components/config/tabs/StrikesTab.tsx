@@ -51,7 +51,7 @@ export function StrikesTab() {
   const updateMutation = useMutation({
     mutationFn: (input: StrikesConfig) => trpcClient.config.updateStrikes.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries();
       toast.success("Configuracao de strikes atualizada!");
       setConfirmOpen(false);
     },

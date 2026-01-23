@@ -29,7 +29,7 @@ export default function AdminSyncPage() {
     mutationFn: () => trpcClient.config.processarFilaRetryManual.mutate(),
     onSuccess: (data) => {
       toast.success(`Processados: ${data.processados} | Sucesso: ${data.sucesso} | Falha: ${data.falha}`);
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries();
     },
     onError: (error) => {
       toast.error(`Erro: ${error.message}`);

@@ -215,7 +215,7 @@ function SolicitacaoRow({ solicitacao }: { solicitacao: any }) {
         description: `${aprovados} aprovados, ${rejeitados} rejeitados`,
       });
       setApproveDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: [['aprovacoes', 'listarSolicitacoes']] });
+      queryClient.invalidateQueries();
     },
     onError: (err) => {
       toast.error(`Erro ao aprovar: ${err.message}`);
@@ -227,7 +227,7 @@ function SolicitacaoRow({ solicitacao }: { solicitacao: any }) {
     onSuccess: () => {
       toast.success("Solicitação rejeitada com sucesso!");
       setRejectDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: [['aprovacoes', 'listarSolicitacoes']] });
+      queryClient.invalidateQueries();
     },
     onError: (err) => {
       toast.error(`Erro ao rejeitar: ${err.message}`);

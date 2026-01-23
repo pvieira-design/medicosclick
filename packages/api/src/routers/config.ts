@@ -42,6 +42,7 @@ const PeriodosSchema = z.object({
 const PesosScoreSchema = z.object({
   conversao: z.number().min(0).max(1),
   ticketMedio: z.number().min(0).max(1),
+  semanasCalculo: z.number().min(1).max(52).optional(),
 });
 
 const StrikesConfigSchema = z.object({
@@ -116,13 +117,19 @@ export const configRouter = router({
       throw new Error("A soma dos pesos deve ser igual a 1");
     }
 
+    const valorFinal = {
+      conversao: input.conversao,
+      ticketMedio: input.ticketMedio,
+      semanasCalculo: input.semanasCalculo ?? 8,
+    };
+
     return prisma.configSistema.upsert({
       where: { chave: "pesos_score" },
-      update: { valor: input },
+      update: { valor: valorFinal },
       create: {
         chave: "pesos_score",
-        valor: input,
-        descricao: "Pesos para calculo do score (conversao e ticket medio)",
+        valor: valorFinal,
+        descricao: "Configuracao do calculo de score (pesos e periodo)",
       },
     });
   }),

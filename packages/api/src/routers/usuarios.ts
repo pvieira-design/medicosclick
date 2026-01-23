@@ -15,6 +15,7 @@ export const usuariosRouter = router({
         tipo: UserTipoEnum.optional(),
         faixa: FaixaEnum.optional(),
         ativo: z.boolean().optional(),
+        search: z.string().optional(),
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(20),
       })
@@ -24,6 +25,13 @@ export const usuariosRouter = router({
         ...(input.tipo && { tipo: input.tipo }),
         ...(input.faixa && { faixa: input.faixa }),
         ...(input.ativo !== undefined && { ativo: input.ativo }),
+        ...(input.search && {
+          OR: [
+            { name: { contains: input.search, mode: "insensitive" as const } },
+            { email: { contains: input.search, mode: "insensitive" as const } },
+            { crm: { contains: input.search, mode: "insensitive" as const } },
+          ],
+        }),
       };
 
       const [usuarios, total] = await Promise.all([
@@ -44,6 +52,7 @@ export const usuariosRouter = router({
             score: true,
             strikes: true,
             clickDoctorId: true,
+            crm: true,
             createdAt: true,
           },
         }),
@@ -105,7 +114,7 @@ export const usuariosRouter = router({
       });
     }
 
-    const medicosClick = await clickQueries.getMedicosAtivos();
+    const medicosClick = await clickQueries.getTodosMedicos();
     const medicosImportados = await prisma.user.findMany({
       where: { clickDoctorId: { not: null } },
       select: { clickDoctorId: true },
@@ -119,6 +128,29 @@ export const usuariosRouter = router({
     }));
   }),
 
+  diagnosticoMedicosClick: adminProcedure.query(async () => {
+    if (!process.env.CLICK_REPLICA_DATABASE_URL) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Conexao com banco Click nao configurada (CLICK_REPLICA_DATABASE_URL)",
+      });
+    }
+
+    const [diagnostico] = await clickQueries.getDiagnosticoMedicos();
+    
+    return {
+      total_doctors: Number(diagnostico?.total_doctors ?? 0),
+      filtrados: {
+        sem_nome: Number(diagnostico?.sem_nome ?? 0),
+        nome_teste: Number(diagnostico?.nome_teste ?? 0),
+        priority_zero_ou_negativo: Number(diagnostico?.priority_zero_ou_negativo ?? 0),
+        sem_schedule: Number(diagnostico?.sem_schedule ?? 0),
+        schedule_vazio: Number(diagnostico?.schedule_vazio ?? 0),
+      },
+      ativos_final: Number(diagnostico?.ativos_final ?? 0),
+    };
+  }),
+
   importarMedicos: adminProcedure
     .input(
       z.object({
@@ -126,7 +158,7 @@ export const usuariosRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const medicosClick = await clickQueries.getMedicosAtivos();
+      const medicosClick = await clickQueries.getTodosMedicos();
       const medicosParaImportar = medicosClick.filter((m) =>
         input.doctorIds.includes(m.doctor_id)
       );
@@ -165,6 +197,7 @@ export const usuariosRouter = router({
               tipo: "medico",
               faixa: "P5",
               clickDoctorId: medico.doctor_id,
+              crm: medico.crm,
               ativo: true,
             },
           }),
@@ -196,11 +229,11 @@ export const usuariosRouter = router({
       });
     }
 
-    const medicosClick = await clickQueries.getMedicosAtivos();
+    const medicosClick = await clickQueries.getTodosMedicos();
 
     const existentes = await prisma.user.findMany({
       where: { clickDoctorId: { not: null } },
-      select: { id: true, email: true, clickDoctorId: true, name: true },
+      select: { id: true, email: true, clickDoctorId: true, name: true, crm: true },
     });
 
     const mapExistentes = new Map(
@@ -217,13 +250,14 @@ export const usuariosRouter = router({
         const existente = mapExistentes.get(medico.doctor_id);
 
         if (existente) {
-          const dadosMudaram = existente.name !== medico.name || existente.email !== medico.email;
+          const dadosMudaram = existente.name !== medico.name || existente.email !== medico.email || existente.crm !== medico.crm;
           if (dadosMudaram) {
             await prisma.user.update({
               where: { id: existente.id },
               data: {
                 name: medico.name,
                 email: medico.email,
+                crm: medico.crm,
               },
             });
             atualizados++;
@@ -244,6 +278,7 @@ export const usuariosRouter = router({
                   tipo: "medico",
                   faixa: "P5",
                   clickDoctorId: medico.doctor_id,
+                  crm: medico.crm,
                   ativo: true,
                 },
               }),

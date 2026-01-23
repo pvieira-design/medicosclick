@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
-import { useMemo, Suspense } from "react";
+import { useMemo, Suspense, useState, useEffect } from "react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { AlertasList } from "@/components/dashboard/AlertasList";
@@ -46,6 +46,11 @@ export default function Dashboard({ session }: { session: typeof authClient.$Inf
 
 function DashboardContent({ session }: { session: typeof authClient.$Infer.Session }) {
   const { dateRange, setDateRange } = useDashboardFilters();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   const resumo = useQuery(trpc.dashboard.resumoGeral.queryOptions());
   const atividade = useQuery(trpc.dashboard.atividadeRecente.queryOptions({ limite: 5 }));
@@ -162,31 +167,37 @@ function DashboardContent({ session }: { session: typeof authClient.$Infer.Sessi
             <CardDescription>Medicos ativos por faixa de atendimento</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                  <XAxis 
-                    dataKey="name" 
-                    stroke="#888888" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false} 
-                  />
-                  <YAxis 
-                    stroke="#888888" 
-                    fontSize={12} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(value) => `${value}`} 
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
-                  />
-                  <Bar dataKey="value" fill="currentColor" radius={[6, 6, 0, 0]} className="fill-brand-500" barSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[300px] w-full" style={{ minHeight: 300, minWidth: 0 }}>
+              {isMounted && chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#888888" 
+                      fontSize={12} 
+                      tickLine={false} 
+                      axisLine={false} 
+                    />
+                    <YAxis 
+                      stroke="#888888" 
+                      fontSize={12} 
+                      tickLine={false} 
+                      axisLine={false} 
+                      tickFormatter={(value) => `${value}`} 
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                    />
+                    <Bar dataKey="value" fill="currentColor" radius={[6, 6, 0, 0]} className="fill-brand-500" barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                  {chartData.length === 0 ? "Sem dados para exibir" : "Carregando grafico..."}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

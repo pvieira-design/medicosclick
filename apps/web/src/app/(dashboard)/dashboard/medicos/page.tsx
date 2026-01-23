@@ -126,12 +126,23 @@ export default function DoctorsPage() {
 
   const queryClient = useQueryClient();
 
+  const debouncedSearch = useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return (value: string) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setPage(1);
+      }, 300);
+    };
+  }, []);
+
   const { data, isLoading, refetch } = useQuery(trpc.usuarios.listar.queryOptions({
     page,
     perPage: 10,
     tipo: "medico",
     faixa: faixaFilter !== "all" ? (faixaFilter as FaixaType) : undefined,
     ativo: statusFilter !== "all" ? statusFilter === "ativo" : undefined,
+    search: search.trim() || undefined,
   }));
 
   const { data: stats } = useQuery(trpc.usuarios.estatisticas.queryOptions());
@@ -140,7 +151,7 @@ export default function DoctorsPage() {
     mutationFn: (input: { userId: string; ativo: boolean }) => 
       trpcClient.usuarios.alterarStatus.mutate(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       toast.success("Status atualizado com sucesso");
     },
   });
@@ -212,7 +223,7 @@ export default function DoctorsPage() {
           title="Total de Médicos" 
           value={stats?.totalMedicos || 0} 
           icon={<Stethoscope className="h-5 w-5 text-emerald-600" />}
-          trend="+2 essa semana"
+          description="Cadastrados no sistema"
         />
         <StatsCard 
           title="Ativos Agora" 
@@ -244,7 +255,10 @@ export default function DoctorsPage() {
                 placeholder="Buscar por nome, email ou CRM..." 
                 className="pl-10 h-11 border-slate-200 bg-slate-50/50 focus:bg-white transition-all focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" 
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  debouncedSearch(e.target.value);
+                }}
               />
             </div>
             <Button variant="outline" size="icon" className="shrink-0 h-11 w-11 border-slate-200 text-slate-500">
@@ -507,7 +521,7 @@ function FaixaFixaControl({
         faixa: input.faixa as FaixaType
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [['usuarios']] });
+      queryClient.invalidateQueries();
       toast.success("Configuração de faixa atualizada");
     },
     onError: (error, variables) => {
@@ -719,7 +733,7 @@ function ObservacoesTab({
     mutationFn: (conteudo: string) => 
       trpcClient.usuarios.criarObservacao.mutate({ medicoId: doctorId, conteudo }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       setNovaObservacao("");
       toast.success("Observação adicionada");
     },
@@ -732,7 +746,7 @@ function ObservacoesTab({
     mutationFn: ({ observacaoId, conteudo }: { observacaoId: string; conteudo: string }) => 
       trpcClient.usuarios.editarObservacao.mutate({ observacaoId, conteudo }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       setEditandoId(null);
       setEditandoConteudo("");
       toast.success("Observação atualizada");
@@ -746,7 +760,7 @@ function ObservacoesTab({
     mutationFn: (observacaoId: string) => 
       trpcClient.usuarios.deletarObservacao.mutate({ observacaoId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries();
       toast.success("Observação removida");
     },
     onError: (error: { message: string }) => {
@@ -1089,7 +1103,7 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
         imageUrl: url
       });
 
-      await queryClient.invalidateQueries({ queryKey: [['usuarios']] });
+      await queryClient.invalidateQueries();
       
       toast.success('Foto atualizada com sucesso!');
     } catch (error) {
@@ -1157,9 +1171,11 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">{doctor.name}</h2>
                     <div className="flex flex-col gap-1 mt-1">
-                      <p className="text-slate-500 flex items-center gap-2 text-sm">
-                        <Stethoscope className="h-3.5 w-3.5" /> CRM: 12345-SP
-                      </p>
+                      {(doctor as any).crm && (
+                        <p className="text-slate-500 flex items-center gap-2 text-sm">
+                          <Stethoscope className="h-3.5 w-3.5" /> CRM: {(doctor as any).crm}
+                        </p>
+                      )}
                       <p className="text-slate-500 flex items-center gap-2 text-sm">
                         <User className="h-3.5 w-3.5" /> {doctor.email}
                       </p>
@@ -1198,44 +1214,17 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
             </div>
 
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full grid grid-cols-5 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
+              <TabsList className="w-full grid grid-cols-4 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
                 <TabsTrigger value="overview">Visão Geral</TabsTrigger>
                 <TabsTrigger value="schedule">Agenda</TabsTrigger>
                 <TabsTrigger value="observacoes">Observações</TabsTrigger>
-                <TabsTrigger value="history">Histórico</TabsTrigger>
                 <TabsTrigger value="settings">Configurações</TabsTrigger>
               </TabsList>
               
               <TabsContent value="overview" className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-4">Métricas do Mês</h3>
+                  <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-4">Métricas</h3>
                   <div className="grid gap-3">
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
-                          <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Horas Trabalhadas</p>
-                          <p className="text-xs text-slate-500">Acumulado no mês atual</p>
-                        </div>
-                      </div>
-                      <span className="text-lg font-bold text-slate-900 dark:text-slate-50">124h</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
-                          <CheckCircle2 className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Consultas Realizadas</p>
-                          <p className="text-xs text-slate-500">Total de atendimentos</p>
-                        </div>
-                      </div>
-                      <span className="text-lg font-bold text-slate-900 dark:text-slate-50">482</span>
-                    </div>
-
                      <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-4">
                         <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg">
@@ -1261,24 +1250,6 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
                   doctorId={doctor.id} 
                   observacoes={(doctor as any).observacoes || []}
                 />
-              </TabsContent>
-
-              <TabsContent value="history">
-                <div className="space-y-6">
-                   <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Linha do Tempo</h3>
-                   <div className="relative border-l border-slate-200 ml-3 space-y-8 pb-2">
-                      <div className="relative pl-8">
-                        <div className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 ring-4 ring-emerald-50"></div>
-                        <p className="text-sm font-medium text-slate-900">Check-in realizado</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Hoje, 08:00 • Unidade Central</p>
-                      </div>
-                      <div className="relative pl-8">
-                        <div className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-slate-300"></div>
-                        <p className="text-sm font-medium text-slate-900">Fechamento de agenda</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Ontem, 18:30 • Sistema automático</p>
-                      </div>
-                   </div>
-                </div>
               </TabsContent>
 
               <TabsContent value="settings" className="space-y-6">

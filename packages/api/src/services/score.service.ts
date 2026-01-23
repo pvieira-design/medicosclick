@@ -11,14 +11,16 @@ export interface ScoreResult {
   percentilTicket: number;
 }
 
-interface PesosScore {
+interface ScoreConfig {
   conversao: number;
   ticketMedio: number;
+  semanasCalculo: number;
 }
 
-const DEFAULT_PESOS: PesosScore = {
+const DEFAULT_CONFIG: ScoreConfig = {
   conversao: 0.66,
   ticketMedio: 0.34,
+  semanasCalculo: 8,
 };
 
 const FAIXA_LIMITES: Array<{ min: number; faixa: Faixa }> = [
@@ -43,17 +45,18 @@ function determinarFaixa(score: number): Faixa {
   return "P5";
 }
 
-export async function getPesosScore(): Promise<PesosScore> {
+export async function getScoreConfig(): Promise<ScoreConfig> {
   const configPesos = await prisma.configSistema.findUnique({
     where: { chave: "pesos_score" },
   });
   
-  if (!configPesos?.valor) return DEFAULT_PESOS;
+  if (!configPesos?.valor) return DEFAULT_CONFIG;
   
   const valor = configPesos.valor as Record<string, unknown>;
   return {
-    conversao: typeof valor.conversao === "number" ? valor.conversao : DEFAULT_PESOS.conversao,
-    ticketMedio: typeof valor.ticketMedio === "number" ? valor.ticketMedio : DEFAULT_PESOS.ticketMedio,
+    conversao: typeof valor.conversao === "number" ? valor.conversao : DEFAULT_CONFIG.conversao,
+    ticketMedio: typeof valor.ticketMedio === "number" ? valor.ticketMedio : DEFAULT_CONFIG.ticketMedio,
+    semanasCalculo: typeof valor.semanasCalculo === "number" ? valor.semanasCalculo : DEFAULT_CONFIG.semanasCalculo,
   };
 }
 
@@ -61,15 +64,15 @@ export async function calcularScoreMedico(
   clickDoctorId: number,
   todasMetricas?: MetricasMedico[]
 ): Promise<ScoreResult | null> {
-  const pesos = await getPesosScore();
+  const config = await getScoreConfig();
   
-  const [medicoMetricas] = await clickQueries.getMetricasMedico(clickDoctorId);
+  const [medicoMetricas] = await clickQueries.getMetricasMedico(clickDoctorId, config.semanasCalculo);
   
   if (!medicoMetricas) {
     return null;
   }
 
-  const metricas = todasMetricas ?? await clickQueries.getMetricasTodosMedicos();
+  const metricas = todasMetricas ?? await clickQueries.getMetricasTodosMedicos(config.semanasCalculo);
   
   const conversoes = metricas.map(m => m.taxa_conversao);
   const tickets = metricas.map(m => m.ticket_medio);
@@ -78,7 +81,7 @@ export async function calcularScoreMedico(
   const percentilTicket = calcularPercentil(medicoMetricas.ticket_medio, tickets);
   
   const score = Math.round(
-    (percentilConversao * pesos.conversao) + (percentilTicket * pesos.ticketMedio)
+    (percentilConversao * config.conversao) + (percentilTicket * config.ticketMedio)
   );
   
   const faixa = determinarFaixa(score);
@@ -97,11 +100,13 @@ export async function recalcularTodosScores(): Promise<{
   atualizados: number;
   erros: Array<{ medicoId: string; erro: string }>;
 }> {
+  const config = await getScoreConfig();
+  
   const medicos = await prisma.user.findMany({
     where: { tipo: "medico", ativo: true, clickDoctorId: { not: null } },
   });
 
-  const todasMetricas = await clickQueries.getMetricasTodosMedicos();
+  const todasMetricas = await clickQueries.getMetricasTodosMedicos(config.semanasCalculo);
   
   let atualizados = 0;
   const erros: Array<{ medicoId: string; erro: string }> = [];
