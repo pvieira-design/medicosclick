@@ -4,6 +4,7 @@ import prisma from "@clickmedicos/db";
 import { clickQueries } from "@clickmedicos/db/click-replica";
 import { router, medicoProcedure } from "../index";
 import { sincronizarHorariosMedicoComClick } from "../services/sync.service";
+import { notificarSolicitacaoRecebida } from "../services/whatsapp-notification.service";
 
 const DiaSemanaEnum = z.enum(["dom", "seg", "ter", "qua", "qui", "sex", "sab"]);
 const MotivoCancelamentoEnum = z.enum([
@@ -131,6 +132,10 @@ export const solicitacoesRouter = router({
           totalSlots: slotsNovos.length,
           status: "pendente",
         },
+      });
+
+      notificarSolicitacaoRecebida(ctx.medico.id).catch((err) => {
+        console.error("[WhatsApp] Falha ao notificar solicitação recebida:", err);
       });
 
       return {

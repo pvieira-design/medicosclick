@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import prisma from "@clickmedicos/db";
 import { router, staffProcedure, diretorProcedure } from "../index";
 import { sincronizarHorariosMedicoComClick } from "../services/sync.service";
+import { notificarSolicitacaoAtualizada } from "../services/whatsapp-notification.service";
 
 const SlotSchema = z.object({
   diaSemana: z.enum(["dom", "seg", "ter", "qua", "qui", "sex", "sab"]),
@@ -146,6 +147,10 @@ export const aprovacoesRouter = router({
         });
       }
 
+      notificarSolicitacaoAtualizada(solicitacao.medicoId).catch((err) => {
+        console.error("[WhatsApp] Falha ao notificar solicitação aprovada:", err);
+      });
+
       return result;
     }),
 
@@ -199,6 +204,10 @@ export const aprovacoesRouter = router({
         });
 
         return solicitacaoAtualizada;
+      });
+
+      notificarSolicitacaoAtualizada(solicitacao.medicoId).catch((err) => {
+        console.error("[WhatsApp] Falha ao notificar solicitação rejeitada:", err);
       });
 
       return result;
@@ -301,6 +310,10 @@ export const aprovacoesRouter = router({
           },
         });
       }
+
+      notificarSolicitacaoAtualizada(solicitacao.medicoId).catch((err) => {
+        console.error("[WhatsApp] Falha ao notificar solicitação aprovada (override):", err);
+      });
 
       return result;
     }),
