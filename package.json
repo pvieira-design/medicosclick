@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run dev --workspaces",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
     "check-types": "npm run check-types --workspaces",
     "dev:native": "npm run dev --workspace native",
     "dev:web": "npm run dev --workspace web",
