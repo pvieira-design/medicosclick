@@ -1,0 +1,238 @@
+// ========== ENUMS ==========
+
+enum UserTipo {
+  super_admin
+  admin
+  diretor
+  atendente
+  medico
+}
+
+enum DiaSemana {
+  dom
+  seg
+  ter
+  qua
+  qui
+  sex
+  sab
+}
+
+enum Faixa {
+  P1
+  P2
+  P3
+  P4
+  P5
+}
+
+enum SolicitacaoStatus {
+  pendente
+  aprovada
+  rejeitada
+}
+
+enum CancelamentoStatus {
+  pendente
+  aprovado
+  rejeitado
+}
+
+enum MotivoCancelamento {
+  doenca
+  emergencia_familiar
+  compromisso_medico
+  problema_tecnico
+  outro
+}
+
+// ========== OBSERVACOES DO MEDICO ==========
+
+model MedicoObservacao {
+  id          String   @id @default(uuid())
+  
+  medicoId    String
+  medico      User     @relation("observacoesMedico", fields: [medicoId], references: [id], onDelete: Cascade)
+  
+  autorId     String
+  autor       User     @relation("observacoesAutor", fields: [autorId], references: [id], onDelete: Cascade)
+  
+  conteudo    String   @db.Text
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([medicoId])
+  @@index([autorId])
+  @@index([createdAt])
+  @@map("medico_observacao")
+}
+
+// ========== CONFIGURACOES DO MEDICO ==========
+
+model MedicoConfig {
+  id              String   @id @default(uuid())
+  
+  medicoId        String   @unique
+  medico          User     @relation(fields: [medicoId], references: [id], onDelete: Cascade)
+  
+  // Metricas vindas do Click (atualizadas periodicamente)
+  taxaConversao   Decimal? @db.Decimal(5, 2)
+  ticketMedio     Decimal? @db.Decimal(10, 2)
+  totalConsultas  Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("medico_config")
+}
+
+// ========== HORARIOS DO MEDICO ==========
+
+model MedicoHorario {
+  id              String    @id @default(uuid())
+  
+  medicoId        String
+  medico          User      @relation(fields: [medicoId], references: [id], onDelete: Cascade)
+  
+  diaSemana       DiaSemana
+  horario         String    // "08:00", "08:20", etc (formato HH:mm)
+  ativo           Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([medicoId, diaSemana, horario])
+  @@index([medicoId])
+  @@index([diaSemana])
+  @@map("medico_horario")
+}
+
+// ========== SOLICITACOES DE ABERTURA ==========
+
+model Solicitacao {
+  id              String            @id @default(uuid())
+  
+  medicoId        String
+  medico          User              @relation("solicitacoes", fields: [medicoId], references: [id], onDelete: Cascade)
+  
+  // Dados da solicitacao (JSON com todos os slots)
+  slots           Json              // [{ diaSemana: "seg", horario: "08:00" }, ...]
+  totalSlots      Int
+  
+  status          SolicitacaoStatus @default(pendente)
+  
+  // Aprovacao
+  aprovadoPorId   String?
+  aprovadoPor     User?             @relation("solicitacoesAprovadas", fields: [aprovadoPorId], references: [id])
+  slotsAprovados  Json?             // Slots que foram aprovados (pode ser parcial)
+  slotsRejeitados Json?             // Slots que foram rejeitados
+  motivoRejeicao  String?
+  override        Boolean           @default(false)
+  overrideMotivo  String?
+  
+  processadoEm    DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([medicoId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("solicitacao")
+}
+
+// ========== CANCELAMENTO EMERGENCIAL ==========
+
+model CancelamentoEmergencial {
+  id                String              @id @default(uuid())
+  
+  medicoId          String
+  medico            User                @relation("cancelamentos", fields: [medicoId], references: [id], onDelete: Cascade)
+  
+  // Dados do cancelamento
+  slots             Json                // [{ diaSemana: "seg", horario: "08:00" }, ...]
+  totalSlots        Int
+  
+  motivoCategoria   MotivoCancelamento
+  motivoDescricao   String?
+  
+  status            CancelamentoStatus  @default(pendente)
+  
+  // Processamento
+  processadoPorId   String?
+  processadoPor     User?               @relation("cancelamentosProcessados", fields: [processadoPorId], references: [id])
+  motivoRejeicao    String?
+  processadoEm      DateTime?
+  
+  // Strike
+  strikeAplicado    Boolean             @default(false)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([medicoId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("cancelamento_emergencial")
+}
+
+// ========== CONFIGURACOES DO SISTEMA ==========
+
+model ConfigSistema {
+  id        String   @id @default(uuid())
+  chave     String   @unique
+  valor     Json
+  descricao String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("config_sistema")
+}
+
+// ========== FILA DE RETRY (SYNC CLICK) ==========
+
+model SyncQueue {
+  id            String    @id @default(uuid())
+  
+  tipo          String    // "atualizar_horario", "importar_medicos"
+  payload       Json
+  tentativas    Int       @default(0)
+  maxTentativas Int       @default(5)
+  erro          String?
+  
+  processadoEm  DateTime?
+  proximoRetry  DateTime  @default(now())
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([proximoRetry])
+  @@index([processadoEm])
+  @@map("sync_queue")
+}
+
+// ========== AUDITORIA ==========
+
+model Auditoria {
+  id          String   @id @default(uuid())
+  
+  usuarioId   String?
+  usuarioNome String?
+  acao        String   // "APROVAR_SOLICITACAO", "REJEITAR_SOLICITACAO", "APLICAR_STRIKE", etc
+  entidade    String   // "solicitacao", "cancelamento", "config", etc
+  entidadeId  String?
+  
+  dadosAntes  Json?
+  dadosDepois Json?
+  
+  ip          String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+
+  @@index([usuarioId])
+  @@index([entidade])
+  @@index([createdAt])
+  @@map("auditoria")
+}

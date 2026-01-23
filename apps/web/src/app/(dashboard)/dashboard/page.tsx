@@ -1,8 +1,7 @@
 import { auth } from "@clickmedicos/auth";
+import prisma from "@clickmedicos/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-
-import { authClient } from "@/lib/auth-client";
 
 import Dashboard from "./dashboard";
 
@@ -15,11 +14,16 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { tipo: true },
+  });
+
+  if (dbUser?.tipo === "medico") {
+    redirect("/dashboard/meu-desempenho");
+  }
+
   return (
-    <div>
-      <h1>Dashboard</h1>
-      <p>Welcome {session.user.name}</p>
-      <Dashboard session={session} />
-    </div>
+    <Dashboard session={session} />
   );
 }
