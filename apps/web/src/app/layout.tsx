@@ -16,8 +16,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "clickmedicos",
-  description: "clickmedicos",
+  title: {
+    default: "ClickMedicos",
+    template: "%s | ClickMedicos",
+  },
+  description: "Sistema de gestao de horarios medicos integrado ao Click CRM",
 };
 
 export default function RootLayout({

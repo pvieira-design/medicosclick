@@ -19,6 +19,7 @@ import {
 import { trpc } from "@/utils/trpc"
 import { authClient } from "@/lib/auth-client"
 import { ModeToggle } from "./mode-toggle"
+import { ClickLogo, ClickLogoIcon } from "./icons/click-logo"
 import {
   Calendar,
   PlusCircle,
@@ -177,9 +178,10 @@ export function Sidebar({ className }: SidebarProps) {
           <SheetContent side="left" className="p-0 w-[280px]">
             <div className="flex h-full flex-col bg-background">
               <div className="flex h-14 items-center border-b px-4 justify-between">
-                <span className="font-bold text-lg tracking-tight text-brand-600 dark:text-brand-400">
-                  ClickMédicos
-                </span>
+                <ClickLogo 
+                  size="md" 
+                  className="text-brand-600 dark:text-brand-400" 
+                />
                 <ModeToggle />
               </div>
               <ScrollArea className="flex-1 py-4">
@@ -220,19 +222,30 @@ export function Sidebar({ className }: SidebarProps) {
       >
         <div className="flex h-full flex-col bg-background">
           <div className={cn("flex h-14 items-center border-b px-3", isCollapsed ? "justify-center" : "justify-between")}>
-            {!isCollapsed && (
-              <span className="font-bold text-lg tracking-tight text-brand-600 dark:text-brand-400">
-                ClickMédicos
-              </span>
+            {isCollapsed ? (
+              <button
+                onClick={toggleCollapse}
+                className="p-1 rounded-lg hover:bg-accent transition-colors"
+                title="Expandir menu"
+              >
+                <ClickLogoIcon className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+              </button>
+            ) : (
+              <>
+                <ClickLogo 
+                  size="md" 
+                  className="text-brand-600 dark:text-brand-400" 
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden md:flex h-8 w-8"
+                  onClick={toggleCollapse}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden md:flex h-8 w-8"
-              onClick={toggleCollapse}
-            >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
           </div>
           
           <ScrollArea className="flex-1 py-4">
