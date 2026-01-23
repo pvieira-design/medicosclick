@@ -10,7 +10,13 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
 
-  trustedOrigins: [env.CORS_ORIGIN],
+  trustedOrigins: (request) => {
+    const origin = request?.headers?.get?.("origin") ?? "";
+    const trusted: (string | null)[] = [env.CORS_ORIGIN];
+    if (origin.endsWith(".vercel.app")) trusted.push(origin);
+    if (origin.includes("localhost")) trusted.push(origin);
+    return trusted;
+  },
   emailAndPassword: {
     enabled: true,
   },
