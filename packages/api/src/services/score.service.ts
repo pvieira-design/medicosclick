@@ -1,5 +1,5 @@
 import prisma from "@clickmedicos/db";
-import { clickQueries, type MetricasMedico } from "@clickmedicos/db/click-replica";
+import { clickQueries, type MetricasMedicoPrimeiroLead } from "@clickmedicos/db/click-replica";
 import type { Faixa } from "@clickmedicos/db/enums";
 
 export interface ScoreResult {
@@ -9,6 +9,15 @@ export interface ScoreResult {
   ticketMedio: number;
   percentilConversao: number;
   percentilTicket: number;
+  totalConsultasRealizadas: number;
+}
+
+interface FaixaConfig {
+  scoreMinimo: number;
+  consultasMinimas: number;
+  slotsMaximo: number | null;
+  slotsMinimo: number;
+  periodos: string[];
 }
 
 interface ScoreConfig {
@@ -60,19 +69,58 @@ export async function getScoreConfig(): Promise<ScoreConfig> {
   };
 }
 
+const DEFAULT_FAIXAS_CONFIG: Record<Faixa, FaixaConfig> = {
+  P1: { scoreMinimo: 80, consultasMinimas: 100, slotsMaximo: null, slotsMinimo: 10, periodos: ["manha", "tarde", "noite"] },
+  P2: { scoreMinimo: 60, consultasMinimas: 50, slotsMaximo: 120, slotsMinimo: 10, periodos: ["manha", "tarde", "noite"] },
+  P3: { scoreMinimo: 40, consultasMinimas: 25, slotsMaximo: 80, slotsMinimo: 8, periodos: ["tarde", "noite"] },
+  P4: { scoreMinimo: 20, consultasMinimas: 10, slotsMaximo: 50, slotsMinimo: 5, periodos: ["tarde"] },
+  P5: { scoreMinimo: 0, consultasMinimas: 0, slotsMaximo: 30, slotsMinimo: 3, periodos: ["tarde"] },
+};
+
+async function getConfigFaixas(): Promise<Record<Faixa, FaixaConfig>> {
+  const configFaixas = await prisma.configSistema.findUnique({
+    where: { chave: "faixas" },
+  });
+  
+  if (!configFaixas?.valor) return DEFAULT_FAIXAS_CONFIG;
+  
+  return configFaixas.valor as unknown as Record<Faixa, FaixaConfig>;
+}
+
+function ajustarFaixaPorConsultasMinimas(
+  faixaCalculada: Faixa,
+  totalConsultas: number,
+  configFaixas: Record<Faixa, FaixaConfig>
+): Faixa {
+  const ordemFaixas: Faixa[] = ["P1", "P2", "P3", "P4", "P5"];
+  const idxCalculada = ordemFaixas.indexOf(faixaCalculada);
+  
+  for (let i = idxCalculada; i < ordemFaixas.length; i++) {
+    const faixa = ordemFaixas[i]!;
+    const minConsultas = configFaixas[faixa]?.consultasMinimas ?? 0;
+    
+    if (totalConsultas >= minConsultas) {
+      return faixa;
+    }
+  }
+  
+  return "P5";
+}
+
 export async function calcularScoreMedico(
   clickDoctorId: number,
-  todasMetricas?: MetricasMedico[]
+  todasMetricas?: MetricasMedicoPrimeiroLead[]
 ): Promise<ScoreResult | null> {
   const config = await getScoreConfig();
+  const configFaixas = await getConfigFaixas();
   
-  const [medicoMetricas] = await clickQueries.getMetricasMedico(clickDoctorId, config.semanasCalculo);
+  const [medicoMetricas] = await clickQueries.getMetricasMedicoPrimeiroLead(clickDoctorId, config.semanasCalculo);
   
   if (!medicoMetricas) {
     return null;
   }
 
-  const metricas = todasMetricas ?? await clickQueries.getMetricasTodosMedicos(config.semanasCalculo);
+  const metricas = todasMetricas ?? await clickQueries.getMetricasTodosMedicosPrimeiroLead(config.semanasCalculo);
   
   const conversoes = metricas.map(m => m.taxa_conversao);
   const tickets = metricas.map(m => m.ticket_medio);
@@ -84,7 +132,13 @@ export async function calcularScoreMedico(
     (percentilConversao * config.conversao) + (percentilTicket * config.ticketMedio)
   );
   
-  const faixa = determinarFaixa(score);
+  const faixaPorScore = determinarFaixa(score);
+  
+  const faixa = ajustarFaixaPorConsultasMinimas(
+    faixaPorScore,
+    medicoMetricas.total_consultas_realizadas,
+    configFaixas
+  );
 
   return {
     score,
@@ -93,6 +147,7 @@ export async function calcularScoreMedico(
     ticketMedio: medicoMetricas.ticket_medio,
     percentilConversao,
     percentilTicket,
+    totalConsultasRealizadas: medicoMetricas.total_consultas_realizadas,
   };
 }
 
@@ -106,7 +161,7 @@ export async function recalcularTodosScores(): Promise<{
     where: { tipo: "medico", ativo: true, clickDoctorId: { not: null } },
   });
 
-  const todasMetricas = await clickQueries.getMetricasTodosMedicos(config.semanasCalculo);
+  const todasMetricas = await clickQueries.getMetricasTodosMedicosPrimeiroLead(config.semanasCalculo);
   
   let atualizados = 0;
   const erros: Array<{ medicoId: string; erro: string }> = [];
@@ -118,7 +173,6 @@ export async function recalcularTodosScores(): Promise<{
       const scoreResult = await calcularScoreMedico(medico.clickDoctorId, todasMetricas);
       
       if (scoreResult) {
-        // Se faixaFixa = true, atualiza apenas o score, mantém a faixa manual
         const updateData = medico.faixaFixa
           ? { score: scoreResult.score }
           : { score: scoreResult.score, faixa: scoreResult.faixa };
@@ -133,11 +187,13 @@ export async function recalcularTodosScores(): Promise<{
             update: {
               taxaConversao: scoreResult.taxaConversao,
               ticketMedio: scoreResult.ticketMedio,
+              totalConsultas: scoreResult.totalConsultasRealizadas,
             },
             create: {
               medicoId: medico.id,
               taxaConversao: scoreResult.taxaConversao,
               ticketMedio: scoreResult.ticketMedio,
+              totalConsultas: scoreResult.totalConsultasRealizadas,
             },
           }),
         ]);

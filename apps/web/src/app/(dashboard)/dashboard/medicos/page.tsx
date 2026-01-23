@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { trpc, trpcClient } from "@/utils/trpc";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { trpc, trpcClient, queryClient } from "@/utils/trpc";
 import { toast } from "sonner";
 import { 
   Search, 
@@ -31,7 +31,9 @@ import {
   Send,
   Camera,
   Upload,
-  ImagePlus
+  ImagePlus,
+  FileText,
+  CreditCard
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -124,7 +126,7 @@ export default function DoctorsPage() {
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  const queryClient = useQueryClient();
+
 
   const debouncedSearch = useMemo(() => {
     let timeoutId: NodeJS.Timeout;
@@ -136,7 +138,7 @@ export default function DoctorsPage() {
     };
   }, []);
 
-  const { data, isLoading, refetch } = useQuery(trpc.usuarios.listar.queryOptions({
+  const { data, isLoading } = useQuery(trpc.usuarios.listar.queryOptions({
     page,
     perPage: 10,
     tipo: "medico",
@@ -159,7 +161,7 @@ export default function DoctorsPage() {
   const sincronizarMutation = useMutation({
     mutationFn: () => trpcClient.usuarios.sincronizarMedicos.mutate(),
     onSuccess: (result: { novos: number; atualizados: number; erros: number; totalClick: number }) => {
-      refetch();
+      queryClient.invalidateQueries();
       toast.success(`Sincronizado! ${result.novos} novos, ${result.atualizados} atualizados`);
     },
     onError: (error: { message: string }) => {
@@ -170,7 +172,7 @@ export default function DoctorsPage() {
   const recalcularScoreMutation = useMutation({
     mutationFn: () => trpcClient.medico.recalcularTodosScoresDiretor.mutate(),
     onSuccess: (result: { atualizados: number; erros: { medicoId: string; erro: string }[] }) => {
-      refetch();
+      queryClient.invalidateQueries();
       toast.success(`Scores recalculados! ${result.atualizados} médicos atualizados`);
     },
     onError: (error: { message: string }) => {
@@ -510,7 +512,7 @@ function FaixaFixaControl({
   currentFaixaFixa: boolean; 
   currentFaixa: string | null;
 }) {
-  const queryClient = useQueryClient();
+
   const [localFaixaFixa, setLocalFaixaFixa] = useState(currentFaixaFixa);
   const [localFaixa, setLocalFaixa] = useState(currentFaixa);
   
@@ -727,7 +729,7 @@ function ObservacoesTab({
   const [novaObservacao, setNovaObservacao] = useState("");
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [editandoConteudo, setEditandoConteudo] = useState("");
-  const queryClient = useQueryClient();
+
 
   const criarMutation = useMutation({
     mutationFn: (conteudo: string) => 
@@ -1054,6 +1056,206 @@ function DoctorScheduleGrid({ doctorId }: { doctorId: string }) {
   );
 }
 
+function BigNumberCard({ 
+  label, 
+  value, 
+  footer, 
+  className, 
+  valueClassName 
+}: { 
+  label: string; 
+  value: React.ReactNode; 
+  footer?: React.ReactNode; 
+  className?: string; 
+  valueClassName?: string;
+}) {
+  return (
+    <div className={`flex flex-col p-4 rounded-lg bg-white border border-slate-200 ${className}`}>
+      <div className={`text-2xl font-bold ${valueClassName}`}>{value}</div>
+      <div className="text-sm font-medium text-slate-500">{label}</div>
+      {footer && <div className="mt-2 text-xs text-slate-400">{footer}</div>}
+    </div>
+  );
+}
+
+function MetricasPerformance({ doctorId }: { doctorId: string }) {
+  const { data: metrics, isLoading } = useQuery({
+     ...trpc.medico.getMetricasDetalhadas.queryOptions({ medicoId: doctorId }),
+     enabled: !!doctorId
+  });
+
+  if (isLoading) {
+    return (
+        <div className="space-y-4 mb-8">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+                <Skeleton className="h-24" />
+            </div>
+        </div>
+    )
+  }
+
+  if (!metrics) {
+      return null; 
+  }
+
+  return (
+    <div className="space-y-4 mb-6">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-slate-500" /> 
+            Métricas de Performance
+        </h3>
+        {metrics.semanasCalculo && (
+            <p className="text-xs text-slate-500 mt-1">
+                Período: Últimas {metrics.semanasCalculo} semanas
+                {metrics.periodoInicio && metrics.periodoFim && (
+                  <span className="text-slate-400">
+                    {" "}({new Date(metrics.periodoInicio).toLocaleDateString('pt-BR')} - {new Date(metrics.periodoFim).toLocaleDateString('pt-BR')})
+                  </span>
+                )}
+            </p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Consultas Realizadas</h4>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+            <BigNumberCard 
+                label="Total" 
+                value={metrics.totalConsultas.toLocaleString('pt-BR')} 
+                valueClassName="text-slate-900"
+                className="bg-white shadow-sm"
+            />
+            <BigNumberCard 
+                label="1º Lead" 
+                value={metrics.primeiroLead.toLocaleString('pt-BR')} 
+                valueClassName="text-emerald-600"
+                className="bg-white shadow-sm"
+            />
+             <BigNumberCard 
+                label="Recorrência" 
+                value={metrics.recorrencia.toLocaleString('pt-BR')} 
+                valueClassName="text-blue-600"
+                className="bg-white shadow-sm"
+            />
+        </div>
+        <div className="flex items-center gap-4 text-sm text-slate-600 px-1">
+             <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <span><strong>{metrics.consultasComReceita}</strong> geraram receita</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-slate-400" />
+                <span><strong>{metrics.orcamentosPagos}</strong> orçamentos pagos</span>
+             </div>
+        </div>
+      </div>
+      
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <BigNumberCard 
+                label="Conversão" 
+                value={`${(metrics.taxaConversao * 100).toFixed(1)}%`}
+                valueClassName="text-amber-600"
+            />
+             <BigNumberCard 
+                label="Ticket Médio" 
+                value={metrics.ticketMedio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                valueClassName="text-violet-600"
+            />
+             <BigNumberCard 
+                label="Faturamento" 
+                value={metrics.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                valueClassName="text-emerald-700"
+            />
+       </div>
+
+    </div>
+  )
+}
+
+function CompactDoctorHeader({ doctor, isUploading, handleUploadClick, fileInputRef, handleFileChange }: any) {
+    return (
+        <div className="flex items-start gap-4 mb-8 pb-6 border-b border-slate-100">
+             <div className="relative group cursor-pointer flex-shrink-0" onClick={handleUploadClick}>
+                <Avatar className="h-16 w-16 border border-slate-200 transition-opacity group-hover:opacity-90">
+                   <AvatarImage 
+                     src={doctor.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doctor.name}`} 
+                     className={`object-cover ${isUploading ? 'opacity-50' : ''}`}
+                   />
+                   <AvatarFallback className="text-lg bg-emerald-50 text-emerald-700">
+                     {getInitials(doctor.name)}
+                   </AvatarFallback>
+                </Avatar>
+                
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-[1px]">
+                  {isUploading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <Camera className="h-5 w-5 text-white drop-shadow-md" />
+                  )}
+                </div>
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                  accept="image/jpeg,image/png,image/webp"
+                />
+             </div>
+
+             <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap mb-1">
+                    <h2 className="text-xl font-bold text-slate-900 truncate">{doctor.name}</h2>
+                    <div className="flex items-center gap-2">
+                         <Badge className={`${getFaixaColor(doctor.faixa || "P5")} text-xs px-2 py-0.5 border-0 font-medium`}>
+                            {doctor.faixa || "N/A"}
+                         </Badge>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs px-2 py-0.5 border-0 font-medium ${doctor.ativo ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                          >
+                             {doctor.ativo ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                    </div>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 mb-2">
+                     {doctor.crm && (
+                        <div className="flex items-center gap-1.5">
+                            <Stethoscope className="h-3.5 w-3.5" /> 
+                            <span>CRM: {doctor.crm}</span>
+                        </div>
+                     )}
+                     <div className="flex items-center gap-1.5">
+                         <User className="h-3.5 w-3.5" />
+                         <span>{doctor.email}</span>
+                     </div>
+                </div>
+
+                <div className="flex items-center gap-4 text-sm">
+                     <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                        <Activity className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Score: {doctor.score ?? 0}/100</span>
+                     </div>
+                      <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                        <AlertCircle className={`h-3.5 w-3.5 ${doctor.strikes > 0 ? 'text-rose-500' : 'text-slate-400'}`} />
+                        <span>Strikes: {doctor.strikes}</span>
+                     </div>
+                </div>
+             </div>
+        </div>
+    )
+}
+
 function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; onOpenChange: (open: boolean) => void; doctorId: string | null }) {
   const { data: doctor, isLoading } = useQuery({
     ...trpc.usuarios.getMedico.queryOptions({ id: doctorId! }),
@@ -1062,7 +1264,7 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
 
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
+
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -1126,9 +1328,9 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
         {isLoading || !doctor ? (
           <div className="space-y-8">
             <div className="flex items-center gap-6">
-              <Skeleton className="h-24 w-24 rounded-full" />
+              <Skeleton className="h-16 w-16 rounded-full" />
               <div className="space-y-3">
-                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-6 w-48" />
                 <Skeleton className="h-4 w-32" />
               </div>
             </div>
@@ -1137,109 +1339,22 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
           </div>
         ) : (
           <div className="space-y-8 max-w-full">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-              <div className="relative group cursor-pointer" onClick={handleUploadClick}>
-                <Avatar className="h-24 w-24 border border-slate-200 dark:border-slate-800 transition-opacity group-hover:opacity-90">
-                  <AvatarImage 
-                    src={(doctor as any).image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doctor.name}`} 
-                    className={`object-cover ${isUploading ? 'opacity-50' : ''}`}
-                  />
-                  <AvatarFallback className="text-2xl bg-emerald-50 text-emerald-700">
-                    {getInitials(doctor.name)}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-[1px]">
-                  {isUploading ? (
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
-                  ) : (
-                    <Camera className="h-8 w-8 text-white drop-shadow-md" />
-                  )}
-                </div>
+            <CompactDoctorHeader 
+                doctor={doctor} 
+                isUploading={isUploading} 
+                handleUploadClick={handleUploadClick} 
+                fileInputRef={fileInputRef} 
+                handleFileChange={handleFileChange} 
+            />
 
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
-                  accept="image/jpeg,image/png,image/webp"
-                />
-              </div>
-              
-              <div className="flex-1 space-y-3">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">{doctor.name}</h2>
-                    <div className="flex flex-col gap-1 mt-1">
-                      {(doctor as any).crm && (
-                        <p className="text-slate-500 flex items-center gap-2 text-sm">
-                          <Stethoscope className="h-3.5 w-3.5" /> CRM: {(doctor as any).crm}
-                        </p>
-                      )}
-                      <p className="text-slate-500 flex items-center gap-2 text-sm">
-                        <User className="h-3.5 w-3.5" /> {doctor.email}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge className={`${getFaixaColor(doctor.faixa || "P5")} text-sm px-3 py-1 border-0`}>
-                      {doctor.faixa || "N/A"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MetricasPerformance doctorId={doctor.id} />
 
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 shadow-none">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium mb-1">Score Atual</p>
-                    <p className="text-3xl font-bold text-slate-900 dark:text-slate-50">{doctor.score ?? 0}</p>
-                  </div>
-                  <Activity className="h-10 w-10 text-emerald-500/20" />
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-50/50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 shadow-none">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium mb-1">Strikes</p>
-                    <p className={`text-3xl font-bold ${doctor.strikes > 0 ? "text-rose-600" : "text-slate-900 dark:text-slate-50"}`}>
-                      {doctor.strikes}
-                    </p>
-                  </div>
-                  <AlertCircle className={`h-10 w-10 ${doctor.strikes > 0 ? "text-rose-500/20" : "text-slate-300/20"}`} />
-                </CardContent>
-              </Card>
-            </div>
-
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full grid grid-cols-4 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
-                <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <Tabs defaultValue="schedule" className="w-full">
+              <TabsList className="w-full grid grid-cols-3 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
                 <TabsTrigger value="schedule">Agenda</TabsTrigger>
                 <TabsTrigger value="observacoes">Observações</TabsTrigger>
                 <TabsTrigger value="settings">Configurações</TabsTrigger>
               </TabsList>
-              
-              <TabsContent value="overview" className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-4">Métricas</h3>
-                  <div className="grid gap-3">
-                     <div className="flex items-center justify-between p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg">
-                          <Star className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Avaliação dos Pacientes</p>
-                          <p className="text-xs text-slate-500">Média das avaliações (NPS)</p>
-                        </div>
-                      </div>
-                      <span className="text-lg font-bold text-slate-900 dark:text-slate-50">4.9</span>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
               
               <TabsContent value="schedule">
                 <DoctorScheduleGrid doctorId={doctor.id} />
@@ -1249,6 +1364,7 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
                 <ObservacoesTab 
                   doctorId={doctor.id} 
                   observacoes={(doctor as any).observacoes || []}
+                  currentUserId={undefined}
                 />
               </TabsContent>
 

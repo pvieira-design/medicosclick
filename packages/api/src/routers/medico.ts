@@ -9,7 +9,7 @@ import {
   type ConsultaClick,
 } from "@clickmedicos/db/click-replica";
 import { router, medicoProcedure, staffProcedure, diretorProcedure, adminProcedure } from "../index";
-import { calcularScoreMedico, recalcularTodosScores } from "../services/score.service";
+import { calcularScoreMedico, recalcularTodosScores, getScoreConfig } from "../services/score.service";
 import { TRPCError } from "@trpc/server";
 
 export const medicoRouter = router({
@@ -388,6 +388,48 @@ export const medicoRouter = router({
         motivos: motivos as MotivoNaoRealizada[],
         evolucao: evolucao as EvolucaoHistorica[],
         proximasConsultas: proximasConsultas as ConsultaClick[],
+      };
+    }),
+
+  getMetricasDetalhadas: staffProcedure
+    .input(z.object({ medicoId: z.string() }))
+    .query(async ({ input }) => {
+      const medico = await prisma.user.findUnique({
+        where: { id: input.medicoId },
+        select: { clickDoctorId: true },
+      });
+
+      if (!medico?.clickDoctorId) {
+        return null;
+      }
+
+      const config = await getScoreConfig();
+      
+      const [metricas] = await clickQueries.getMetricasMedicoPrimeiroLead(
+        medico.clickDoctorId, 
+        config.semanasCalculo
+      );
+
+      if (!metricas) {
+        return null;
+      }
+
+      const periodoFim = new Date();
+      const periodoInicio = new Date();
+      periodoInicio.setDate(periodoInicio.getDate() - (config.semanasCalculo * 7));
+
+      return {
+        totalConsultas: metricas.total_consultas_realizadas,
+        primeiroLead: metricas.consultas_primeiro_paciente,
+        recorrencia: metricas.consultas_recorrencia,
+        consultasComReceita: metricas.consultas_com_receita,
+        orcamentosPagos: metricas.orcamentos_pagos,
+        taxaConversao: metricas.taxa_conversao,
+        ticketMedio: metricas.ticket_medio,
+        faturamento: metricas.faturamento,
+        semanasCalculo: config.semanasCalculo,
+        periodoInicio: periodoInicio.toISOString(),
+        periodoFim: periodoFim.toISOString(),
       };
     }),
 

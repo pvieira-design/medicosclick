@@ -35,6 +35,33 @@ export interface MetricasMedico {
   valor_total: number;
 }
 
+/**
+ * Métricas do médico baseadas apenas no PRIMEIRO LEAD de cada paciente.
+ * Usada para cálculo de score e faixa (P1-P5).
+ * 
+ * Taxa de Conversão = orçamentos_pagos / consultas_com_receita
+ * (Mede quantas receitas geraram venda, não consultas geraram venda)
+ */
+export interface MetricasMedicoPrimeiroLead {
+  doctor_id: number;
+  /** Total de consultas realizadas (primeiro lead + recorrência) - usado para validar consultasMinimas */
+  total_consultas_realizadas: number;
+  /** Apenas primeiras consultas de cada paciente */
+  consultas_primeiro_paciente: number;
+  /** Apenas consultas de recorrência (paciente já atendido antes) */
+  consultas_recorrencia: number;
+  /** Primeiras consultas que geraram receita médica */
+  consultas_com_receita: number;
+  /** Orçamentos pagos (vendas confirmadas) de primeiros leads */
+  orcamentos_pagos: number;
+  /** Taxa de conversão: orcamentos_pagos / consultas_com_receita */
+  taxa_conversao: number;
+  /** Ticket médio: faturamento / orcamentos_pagos */
+  ticket_medio: number;
+  /** Faturamento total (value + delivery_value) */
+  faturamento: number;
+}
+
 export interface ConsultaAgendadaDetalhada {
   consulting_id: number;
   doctor_id: number;
@@ -270,6 +297,158 @@ export const clickQueries = {
       FROM metricas
       WHERE total_consultas > 0
       ORDER BY valor_total DESC`
+    ),
+
+  getMetricasMedicoPrimeiroLead: (doctorId: number, semanas: number = 8) =>
+    query<MetricasMedicoPrimeiroLead>(
+      `WITH consultas_classificadas AS (
+        SELECT 
+          id, user_id, doctor_id, start, completed,
+          ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY start::timestamp) AS rn
+        FROM consultings
+        WHERE status NOT IN ('preconsulting', 'cancelled')
+          AND user_id IS NOT NULL
+          AND negotiation_id IS NOT NULL
+      ),
+      primeira_consulta AS (
+        SELECT * FROM consultas_classificadas WHERE rn = 1
+      ),
+      metricas AS (
+        SELECT 
+          pc.doctor_id,
+          
+          (SELECT COUNT(DISTINCT cc.id)
+           FROM consultas_classificadas cc
+           WHERE cc.doctor_id = pc.doctor_id
+             AND cc.completed = true
+             AND cc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS total_consultas_realizadas,
+          
+          COUNT(DISTINCT pc.id) FILTER (
+            WHERE pc.completed = true 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS consultas_primeiro_paciente,
+          
+          (SELECT COUNT(DISTINCT cc.id)
+           FROM consultas_classificadas cc
+           WHERE cc.doctor_id = pc.doctor_id
+             AND cc.completed = true
+             AND cc.rn > 1
+             AND cc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS consultas_recorrencia,
+          
+          COUNT(DISTINCT CASE 
+            WHEN mp.id IS NOT NULL AND pc.completed = true 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+            THEN pc.id 
+          END) AS consultas_com_receita,
+          
+          COUNT(DISTINCT pb.id) FILTER (
+            WHERE pb.status = 'confirmed' 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS orcamentos_pagos,
+          
+          COALESCE(SUM(pb.value + COALESCE(pb.delivery_value, 0)) FILTER (
+            WHERE pb.status = 'confirmed' 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ), 0) AS faturamento
+          
+        FROM primeira_consulta pc
+        LEFT JOIN medical_prescriptions mp ON mp.consulting_id = pc.id
+        LEFT JOIN product_budgets pb ON pb.medical_prescription_id = mp.id
+        WHERE pc.doctor_id = $1
+        GROUP BY pc.doctor_id
+      )
+      SELECT 
+        doctor_id,
+        COALESCE(total_consultas_realizadas, 0)::int AS total_consultas_realizadas,
+        COALESCE(consultas_primeiro_paciente, 0)::int AS consultas_primeiro_paciente,
+        COALESCE(consultas_recorrencia, 0)::int AS consultas_recorrencia,
+        COALESCE(consultas_com_receita, 0)::int AS consultas_com_receita,
+        COALESCE(orcamentos_pagos, 0)::int AS orcamentos_pagos,
+        ROUND(CASE WHEN consultas_com_receita > 0 
+          THEN orcamentos_pagos::numeric / consultas_com_receita ELSE 0 END, 4)::float AS taxa_conversao,
+        ROUND(CASE WHEN orcamentos_pagos > 0 
+          THEN faturamento / orcamentos_pagos ELSE 0 END, 2)::float AS ticket_medio,
+        ROUND(faturamento, 2)::float AS faturamento
+      FROM metricas`,
+      [doctorId]
+    ),
+
+  getMetricasTodosMedicosPrimeiroLead: (semanas: number = 8) =>
+    query<MetricasMedicoPrimeiroLead>(
+      `WITH consultas_classificadas AS (
+        SELECT 
+          id, user_id, doctor_id, start, completed,
+          ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY start::timestamp) AS rn
+        FROM consultings
+        WHERE status NOT IN ('preconsulting', 'cancelled')
+          AND user_id IS NOT NULL
+          AND negotiation_id IS NOT NULL
+      ),
+      primeira_consulta AS (
+        SELECT * FROM consultas_classificadas WHERE rn = 1
+      ),
+      metricas AS (
+        SELECT 
+          pc.doctor_id,
+          
+          (SELECT COUNT(DISTINCT cc.id)
+           FROM consultas_classificadas cc
+           WHERE cc.doctor_id = pc.doctor_id
+             AND cc.completed = true
+             AND cc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS total_consultas_realizadas,
+          
+          COUNT(DISTINCT pc.id) FILTER (
+            WHERE pc.completed = true 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS consultas_primeiro_paciente,
+          
+          (SELECT COUNT(DISTINCT cc.id)
+           FROM consultas_classificadas cc
+           WHERE cc.doctor_id = pc.doctor_id
+             AND cc.completed = true
+             AND cc.rn > 1
+             AND cc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS consultas_recorrencia,
+          
+          COUNT(DISTINCT CASE 
+            WHEN mp.id IS NOT NULL AND pc.completed = true 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+            THEN pc.id 
+          END) AS consultas_com_receita,
+          
+          COUNT(DISTINCT pb.id) FILTER (
+            WHERE pb.status = 'confirmed' 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ) AS orcamentos_pagos,
+          
+          COALESCE(SUM(pb.value + COALESCE(pb.delivery_value, 0)) FILTER (
+            WHERE pb.status = 'confirmed' 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ), 0) AS faturamento
+          
+        FROM primeira_consulta pc
+        LEFT JOIN medical_prescriptions mp ON mp.consulting_id = pc.id
+        LEFT JOIN product_budgets pb ON pb.medical_prescription_id = mp.id
+        GROUP BY pc.doctor_id
+      )
+      SELECT 
+        doctor_id,
+        COALESCE(total_consultas_realizadas, 0)::int AS total_consultas_realizadas,
+        COALESCE(consultas_primeiro_paciente, 0)::int AS consultas_primeiro_paciente,
+        COALESCE(consultas_recorrencia, 0)::int AS consultas_recorrencia,
+        COALESCE(consultas_com_receita, 0)::int AS consultas_com_receita,
+        COALESCE(orcamentos_pagos, 0)::int AS orcamentos_pagos,
+        ROUND(CASE WHEN consultas_com_receita > 0 
+          THEN orcamentos_pagos::numeric / consultas_com_receita ELSE 0 END, 4)::float AS taxa_conversao,
+        ROUND(CASE WHEN orcamentos_pagos > 0 
+          THEN faturamento / orcamentos_pagos ELSE 0 END, 2)::float AS ticket_medio,
+        ROUND(faturamento, 2)::float AS faturamento
+      FROM metricas
+      WHERE total_consultas_realizadas > 0
+      ORDER BY faturamento DESC`
     ),
 
   getConsultasAgendadasDetalhada: (doctorId: number, limite: number = 50) =>
