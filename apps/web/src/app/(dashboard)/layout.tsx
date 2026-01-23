@@ -1,5 +1,9 @@
 import { Sidebar } from "@/components/sidebar"
 
+// Desabilita prerendering para todas as páginas do dashboard
+// Necessário porque os componentes @base-ui não suportam serialização de handlers durante SSG
+export const dynamic = "force-dynamic";
+
 export default function DashboardLayout({
   children,
 }: {

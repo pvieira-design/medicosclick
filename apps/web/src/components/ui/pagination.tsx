@@ -40,13 +40,16 @@ function PaginationItem({ ...props }: React.ComponentProps<"li">) {
 
 type PaginationLinkProps = {
   isActive?: boolean
+  onClick?: React.MouseEventHandler<HTMLButtonElement>
 } & Pick<React.ComponentProps<typeof Button>, "size"> &
-  React.ComponentProps<"a">
+  Omit<React.ComponentProps<"a">, "onClick">
 
 function PaginationLink({
   className,
   isActive,
   size = "icon",
+  onClick,
+  children,
   ...props
 }: PaginationLinkProps) {
   return (
@@ -54,16 +57,17 @@ function PaginationLink({
       variant={isActive ? "outline" : "ghost"}
       size={size}
       className={cn(className)}
-      nativeButton={false}
-      render={
-        <a
-          aria-current={isActive ? "page" : undefined}
-          data-slot="pagination-link"
-          data-active={isActive}
-          {...props}
-        />
-      }
-    />
+      onClick={onClick}
+    >
+      <span
+        aria-current={isActive ? "page" : undefined}
+        data-slot="pagination-link"
+        data-active={isActive}
+        {...props}
+      >
+        {children}
+      </span>
+    </Button>
   )
 }
 
