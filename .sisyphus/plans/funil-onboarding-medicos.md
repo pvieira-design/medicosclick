@@ -691,7 +691,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 7. Implementar Drag-and-Drop no Kanban
+- [x] 7. Implementar Drag-and-Drop no Kanban
 
   **What to do**:
   - Implementar drag-drop com React Aria DND (`@react-aria/dnd`)
@@ -736,7 +736,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 8. Implementar Sistema de Tags
+- [x] 8. Implementar Sistema de Tags
 
   **What to do**:
   - Adicionar procedures no backend: `adicionarTag`, `removerTag`
@@ -777,7 +777,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 9. Implementar Tab de Entrevista
+- [x] 9. Implementar Tab de Entrevista
 
   **What to do**:
   - Criar formulário na tab "Entrevista" do drawer
@@ -813,7 +813,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 10. Implementar Tab de Treinamento
+- [x] 10. Implementar Tab de Treinamento
 
   **What to do**:
   - Criar formulário na tab "Treinamento" do drawer
@@ -865,7 +865,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 11. Implementar Ativação (Conexão com doctor_id)
+- [x] 11. Implementar Ativação (Conexão com doctor_id)
 
   **What to do**:
   - Criar tab "Ativação" no drawer (visível apenas no estágio Ativo)
@@ -915,7 +915,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 12. Implementar Fluxo de Rejeição
+- [x] 12. Implementar Fluxo de Rejeição
 
   **What to do**:
   - Implementar modal de rejeição (ao clicar no botão)
@@ -957,7 +957,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 13. Integrar com Sistema de Auditoria
+- [x] 13. Integrar com Sistema de Auditoria
 
   **What to do**:
   - Garantir que todas as ações criam registro na tabela `Auditoria`
