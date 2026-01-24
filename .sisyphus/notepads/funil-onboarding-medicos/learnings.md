@@ -27,3 +27,21 @@ Created `apps/web/src/app/(dashboard)/dashboard/onboarding/page.tsx` with a 5-co
 ### Next Steps
 - Implement the `DoctorDetailDrawer` for candidate details.
 - Implement drag-and-drop functionality for moving candidates between stages.
+
+## Task 6: UI Implementation - Candidate Drawer (2026-01-24)
+
+### Implementation Summary
+Implemented `CandidatoDrawer` using `Sheet` and `Tabs` components, integrated into the onboarding page.
+
+### Key Features
+1. **Drawer Component**: Opens on card click, shows detailed candidate info.
+2. **Tabs**:
+   - **Dados**: Read-only view of candidate data (personal, professional, experience, attachments).
+   - **Histórico**: Vertical timeline of all actions (creation, stage changes, rejection).
+   - **Placeholders**: Entrevista, Treinamento, Ativação tabs prepared for future forms.
+3. **Actions**: "Rejeitar Candidato" button (UI only for now).
+
+### Technical Decisions
+- **Type Instantiation Issue**: Encountered "Type instantiation is excessively deep" error with `trpc.onboarding.getCandidato`.
+  - **Solution**: Used `trpcClient` directly in `queryFn` and manually typed the response with `CandidatoDetail` interface to bypass complex type inference.
+- **State Management**: Used local state `selectedId` in `OnboardingPage` to control drawer visibility.
