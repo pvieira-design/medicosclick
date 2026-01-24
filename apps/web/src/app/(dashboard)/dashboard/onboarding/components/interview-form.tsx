@@ -35,13 +35,19 @@ export function InterviewForm({ candidatoId }: { candidatoId: string }) {
   const [entrevistadorId, setEntrevistadorId] = useState<string | null>(null);
   const [resultado, setResultado] = useState<"aprovado" | "reprovado" | "pendente" | null>(null);
 
-  const { data: users } = useQuery({
-    queryKey: ["users-staff"],
-    queryFn: async () => {
-      // TODO: Implement listarStaff procedure
-      return [];
-    },
-  });
+   const { data: users } = useQuery({
+     queryKey: ["users-staff"],
+     queryFn: async () => {
+       const result = await trpcClient.usuarios.listar.query({
+         tipo: undefined,
+         page: 1,
+         perPage: 100,
+       });
+       return result.usuarios.filter((u: any) =>
+         ["admin", "atendente", "diretor", "super_admin"].includes(u.tipo)
+       );
+     },
+   });
 
    const salvarMutation = useMutation({
     mutationFn: async () => {

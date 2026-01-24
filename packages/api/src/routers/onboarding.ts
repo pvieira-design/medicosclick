@@ -254,18 +254,26 @@ export const onboardingRouter = router({
               createdAt: true,
             },
           },
-          tags: {
-            select: {
-              id: true,
-              nome: true,
-              criadoPor: { select: { name: true } },
-              createdAt: true,
-            },
-          },
-          rejeitadoPor: { select: { name: true } },
-          entrevistador: { select: { name: true } },
-          ativadoPor: { select: { name: true } },
-        },
+           tags: {
+             select: {
+               id: true,
+               nome: true,
+               criadoPor: { select: { name: true } },
+               createdAt: true,
+             },
+           },
+           mentores: {
+             select: {
+               id: true,
+               mentorId: true,
+               mentorNome: true,
+               createdAt: true,
+             },
+           },
+           rejeitadoPor: { select: { name: true } },
+           entrevistador: { select: { name: true } },
+           ativadoPor: { select: { name: true } },
+         },
       });
 
       if (!candidato) {

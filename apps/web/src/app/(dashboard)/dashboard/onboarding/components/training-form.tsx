@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
@@ -17,18 +17,36 @@ interface TrainingFormProps {
 }
 
 export function TrainingForm({ candidatoId }: TrainingFormProps) {
-  const [searchMentor, setSearchMentor] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
-  const [mentoresAtribuidos, setMentoresAtribuidos] = useState<
-    Array<{ id: string; nome: string; mentorId: string }>
-  >([]);
+   const [searchMentor, setSearchMentor] = useState("");
+   const [dataInicio, setDataInicio] = useState("");
+   const [dataFim, setDataFim] = useState("");
+   const [mentoresAtribuidos, setMentoresAtribuidos] = useState<
+     Array<{ id: string; nome: string; mentorId: string }>
+   >([]);
 
-  const { data: mentores, isLoading: loadingMentores } = useQuery(
-    trpc.onboarding.buscarMentores.queryOptions({
-      busca: searchMentor || undefined,
-    })
-  );
+   const { data: candidato } = useQuery(
+     trpc.onboarding.getCandidato.queryOptions({
+       id: candidatoId,
+     })
+   );
+
+   const { data: mentores, isLoading: loadingMentores } = useQuery(
+     trpc.onboarding.buscarMentores.queryOptions({
+       busca: searchMentor || undefined,
+     })
+   );
+
+   useEffect(() => {
+     if (candidato?.mentores && candidato.mentores.length > 0) {
+       setMentoresAtribuidos(
+         candidato.mentores.map((m) => ({
+           id: m.id,
+           nome: m.mentorNome,
+           mentorId: m.mentorId,
+         }))
+       );
+     }
+   }, [candidato?.mentores]);
 
   const atribuirMentorMutation = useMutation({
     mutationFn: (input: { candidatoId: string; mentorId: string; mentorNome: string }) =>
