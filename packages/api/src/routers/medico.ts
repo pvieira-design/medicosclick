@@ -224,6 +224,37 @@ export const medicoRouter = router({
     };
   }),
 
+  getGradeEmergencial: medicoProcedure.query(async ({ ctx }): Promise<{
+    horariosAbertos: { diaSemana: "dom" | "seg" | "ter" | "qua" | "qui" | "sex" | "sab"; horario: string }[];
+    slotsComConsulta: Record<string, boolean>;
+  }> => {
+    if (!ctx.medico.clickDoctorId) {
+      return {
+        horariosAbertos: [],
+        slotsComConsulta: {},
+      };
+    }
+
+    const [scheduleResult, slotsConsulta] = await Promise.all([
+      clickQueries.getScheduleMedicoClick(ctx.medico.clickDoctorId),
+      clickQueries.getSlotsComConsultaProximosDias(ctx.medico.clickDoctorId, 3),
+    ]);
+    
+    const slots = expandirScheduleParaSlots(scheduleResult[0]?.schedule ?? null);
+
+    const slotsComConsulta: Record<string, boolean> = {};
+    for (const consulta of slotsConsulta) {
+      if (consulta.dia_semana && consulta.hora) {
+        slotsComConsulta[`${consulta.dia_semana}-${consulta.hora}`] = true;
+      }
+    }
+
+    return {
+      horariosAbertos: slots,
+      slotsComConsulta,
+    };
+  }),
+
   getPerfil: staffProcedure
     .input(z.object({ medicoId: z.string() }))
     .query(async ({ input }) => {
@@ -311,6 +342,14 @@ export const medicoRouter = router({
         faixa: scoreResult.faixa,
       },
     });
+
+    await prisma.historicoScore.create({
+      data: {
+        medicoId: ctx.medico.id,
+        score: scoreResult.score,
+        faixa: scoreResult.faixa,
+      },
+    });
     
     return scoreResult;
   }),
@@ -391,46 +430,63 @@ export const medicoRouter = router({
       };
     }),
 
-  getMetricasDetalhadas: staffProcedure
-    .input(z.object({ medicoId: z.string() }))
-    .query(async ({ input }) => {
-      const medico = await prisma.user.findUnique({
-        where: { id: input.medicoId },
-        select: { clickDoctorId: true },
-      });
+   getMetricasDetalhadas: staffProcedure
+     .input(z.object({ medicoId: z.string() }))
+     .query(async ({ input }) => {
+       const medico = await prisma.user.findUnique({
+         where: { id: input.medicoId },
+         select: { clickDoctorId: true },
+       });
 
-      if (!medico?.clickDoctorId) {
-        return null;
-      }
+       if (!medico?.clickDoctorId) {
+         return null;
+       }
 
-      const config = await getScoreConfig();
-      
-      const [metricas] = await clickQueries.getMetricasMedicoPrimeiroLead(
-        medico.clickDoctorId, 
-        config.semanasCalculo
-      );
+       const config = await getScoreConfig();
+       
+       const [metricas] = await clickQueries.getMetricasMedicoPrimeiroLead(
+         medico.clickDoctorId, 
+         config.semanasCalculo
+       );
 
-      if (!metricas) {
-        return null;
-      }
+       if (!metricas) {
+         return null;
+       }
 
-      const periodoFim = new Date();
-      const periodoInicio = new Date();
-      periodoInicio.setDate(periodoInicio.getDate() - (config.semanasCalculo * 7));
+       const periodoFim = new Date();
+       const periodoInicio = new Date();
+       periodoInicio.setDate(periodoInicio.getDate() - (config.semanasCalculo * 7));
 
-      return {
-        totalConsultas: metricas.total_consultas_realizadas,
-        primeiroLead: metricas.consultas_primeiro_paciente,
-        recorrencia: metricas.consultas_recorrencia,
-        consultasComReceita: metricas.consultas_com_receita,
-        orcamentosPagos: metricas.orcamentos_pagos,
-        taxaConversao: metricas.taxa_conversao,
-        ticketMedio: metricas.ticket_medio,
-        faturamento: metricas.faturamento,
-        semanasCalculo: config.semanasCalculo,
-        periodoInicio: periodoInicio.toISOString(),
-        periodoFim: periodoFim.toISOString(),
-      };
-    }),
+       return {
+         totalConsultas: metricas.total_consultas_realizadas,
+         primeiroLead: metricas.consultas_primeiro_paciente,
+         recorrencia: metricas.consultas_recorrencia,
+         consultasComReceita: metricas.consultas_com_receita,
+         orcamentosPagos: metricas.orcamentos_pagos,
+         taxaConversao: metricas.taxa_conversao,
+         ticketMedio: metricas.ticket_medio,
+         faturamento: metricas.faturamento,
+         semanasCalculo: config.semanasCalculo,
+         periodoInicio: periodoInicio.toISOString(),
+         periodoFim: periodoFim.toISOString(),
+       };
+     }),
+
+   getHistoricoScore: staffProcedure
+     .input(z.object({ medicoId: z.string() }))
+     .query(async ({ input }) => {
+       const historico = await prisma.historicoScore.findMany({
+         where: { medicoId: input.medicoId },
+         orderBy: { createdAt: 'desc' },
+         take: 100,
+         select: {
+           id: true,
+           score: true,
+           faixa: true,
+           createdAt: true,
+         },
+       });
+       return historico;
+     }),
 
 });

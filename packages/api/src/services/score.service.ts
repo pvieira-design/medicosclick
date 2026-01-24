@@ -177,26 +177,33 @@ export async function recalcularTodosScores(): Promise<{
           ? { score: scoreResult.score }
           : { score: scoreResult.score, faixa: scoreResult.faixa };
         
-        await prisma.$transaction([
-          prisma.user.update({
-            where: { id: medico.id },
-            data: updateData,
-          }),
-          prisma.medicoConfig.upsert({
-            where: { medicoId: medico.id },
-            update: {
-              taxaConversao: scoreResult.taxaConversao,
-              ticketMedio: scoreResult.ticketMedio,
-              totalConsultas: scoreResult.totalConsultasRealizadas,
-            },
-            create: {
-              medicoId: medico.id,
-              taxaConversao: scoreResult.taxaConversao,
-              ticketMedio: scoreResult.ticketMedio,
-              totalConsultas: scoreResult.totalConsultasRealizadas,
-            },
-          }),
-        ]);
+         await prisma.$transaction([
+           prisma.user.update({
+             where: { id: medico.id },
+             data: updateData,
+           }),
+           prisma.medicoConfig.upsert({
+             where: { medicoId: medico.id },
+             update: {
+               taxaConversao: scoreResult.taxaConversao,
+               ticketMedio: scoreResult.ticketMedio,
+               totalConsultas: scoreResult.totalConsultasRealizadas,
+             },
+             create: {
+               medicoId: medico.id,
+               taxaConversao: scoreResult.taxaConversao,
+               ticketMedio: scoreResult.ticketMedio,
+               totalConsultas: scoreResult.totalConsultasRealizadas,
+             },
+           }),
+           prisma.historicoScore.create({
+             data: {
+               medicoId: medico.id,
+               score: scoreResult.score,
+               faixa: medico.faixaFixa ? medico.faixa : scoreResult.faixa,
+             },
+           }),
+         ]);
         
         atualizados++;
       }
