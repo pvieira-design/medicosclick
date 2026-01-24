@@ -1,0 +1,148 @@
+// ========== ENUMS ==========
+
+enum CandidatoEstagio {
+  candidato
+  entrevista
+  treinamento
+  ativo
+  performance
+}
+
+enum CandidatoStatus {
+  em_andamento
+  rejeitado
+  concluido
+}
+
+// ========== CANDIDATO ==========
+
+model Candidato {
+  id                    String              @id @default(cuid())
+  
+  // Dados do formulário
+  nome                  String
+  email                 String              @unique(map: "candidato_email_unique")
+  telefone              String
+  crmNumero             String
+  crmEstado             String
+  especialidades        String[]
+  experiencia           String              @db.Text
+  disponibilidade       String              @db.Text
+  comoConheceu          String
+  comoConheceuOutro     String?
+  
+  // Metadados
+  estagio               CandidatoEstagio    @default(candidato)
+  status                CandidatoStatus     @default(em_andamento)
+  motivoRejeicao        String?             @db.Text
+  rejeitadoPorId        String?
+  rejeitadoPor          User?               @relation("CandidatoRejeitadoPor", fields: [rejeitadoPorId], references: [id])
+  rejeitadoEm           DateTime?
+  
+  // Entrevista
+  entrevistaRealizada   Boolean             @default(false)
+  entrevistaNota        Int?
+  entrevistaObservacoes String?             @db.Text
+  entrevistadorId       String?
+  entrevistador         User?               @relation("CandidatoEntrevistador", fields: [entrevistadorId], references: [id])
+  entrevistaChecklist   Json?
+  entrevistaResultado   String?
+  
+  // Treinamento
+  treinamentoInicio     DateTime?
+  treinamentoFim        DateTime?
+  
+  // Ativação
+  clickDoctorId         Int?
+  ativadoPorId          String?
+  ativadoPor            User?               @relation("CandidatoAtivadoPor", fields: [ativadoPorId], references: [id])
+  ativadoEm             DateTime?
+  
+  // Observações gerais
+  observacoesGerais     String?             @db.Text
+  
+  // Timestamps
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  // Relações
+  tags                  CandidatoTag[]
+  historico             CandidatoHistorico[]
+  anexos                CandidatoAnexo[]
+  mentores              CandidatoMentor[]
+  
+  @@unique([crmNumero, crmEstado], map: "candidato_crm_unique")
+  @@index([estagio])
+  @@index([status])
+  @@index([createdAt])
+  @@map("candidato")
+}
+
+// ========== CANDIDATO TAG ==========
+
+model CandidatoTag {
+  id          String      @id @default(cuid())
+  nome        String
+  candidatoId String
+  candidato   Candidato   @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  criadoPorId String
+  criadoPor   User        @relation("CandidatoTagCriadoPor", fields: [criadoPorId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@unique([candidatoId, nome], map: "candidato_tag_unique")
+  @@index([candidatoId])
+  @@map("candidato_tag")
+}
+
+// ========== CANDIDATO HISTORICO ==========
+
+model CandidatoHistorico {
+  id          String      @id @default(cuid())
+  candidatoId String
+  candidato   Candidato   @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  acao        String
+  de          String?
+  para        String?
+  detalhes    Json?
+  usuarioId   String
+  usuario     User        @relation("CandidatoHistoricoUsuario", fields: [usuarioId], references: [id])
+  createdAt   DateTime    @default(now())
+  
+  @@index([candidatoId])
+  @@index([usuarioId])
+  @@index([createdAt])
+  @@map("candidato_historico")
+}
+
+// ========== CANDIDATO ANEXO ==========
+
+model CandidatoAnexo {
+  id          String      @id @default(cuid())
+  candidatoId String
+  candidato   Candidato   @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  nome        String
+  url         String
+  tipo        String
+  tamanho     Int
+  createdAt   DateTime    @default(now())
+  
+  @@index([candidatoId])
+  @@map("candidato_anexo")
+}
+
+// ========== CANDIDATO MENTOR ==========
+
+model CandidatoMentor {
+  id          String      @id @default(cuid())
+  candidatoId String
+  candidato   Candidato   @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
+  mentorId    String
+  mentorNome  String
+  atribuidoPorId String
+  atribuidoPor User        @relation("CandidatoMentorAtribuidoPor", fields: [atribuidoPorId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@unique([candidatoId, mentorId], map: "candidato_mentor_unique")
+  @@index([candidatoId])
+  @@map("candidato_mentor")
+}

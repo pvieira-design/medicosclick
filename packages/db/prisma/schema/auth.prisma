@@ -21,17 +21,25 @@ model User {
   score         Decimal   @default(0) @db.Decimal(5, 2)
   strikes       Int       @default(0)
   
-  // Relacoes do sistema
-  config                      MedicoConfig?
-  horarios                    MedicoHorario[]
-  solicitacoes                Solicitacao[]               @relation("solicitacoes")
-  cancelamentos               CancelamentoEmergencial[]   @relation("cancelamentos")
-  solicitacoesAprovadas       Solicitacao[]               @relation("solicitacoesAprovadas")
-  cancelamentosProcessados    CancelamentoEmergencial[]   @relation("cancelamentosProcessados")
-  observacoes                 MedicoObservacao[]          @relation("observacoesMedico")
-  observacoesCriadas          MedicoObservacao[]          @relation("observacoesAutor")
-  historicoScores             HistoricoScore[]            @relation("historicoScores")
-  notificacoes                Notificacao[]
+   // Relacoes do sistema
+   config                      MedicoConfig?
+   horarios                    MedicoHorario[]
+   solicitacoes                Solicitacao[]               @relation("solicitacoes")
+   cancelamentos               CancelamentoEmergencial[]   @relation("cancelamentos")
+   solicitacoesAprovadas       Solicitacao[]               @relation("solicitacoesAprovadas")
+   cancelamentosProcessados    CancelamentoEmergencial[]   @relation("cancelamentosProcessados")
+   observacoes                 MedicoObservacao[]          @relation("observacoesMedico")
+   observacoesCriadas          MedicoObservacao[]          @relation("observacoesAutor")
+   historicoScores             HistoricoScore[]            @relation("historicoScores")
+   notificacoes                Notificacao[]
+   
+   // Relacoes do onboarding
+   candidatosRejeitados        Candidato[]                 @relation("CandidatoRejeitadoPor")
+   candidatosEntrevistados     Candidato[]                 @relation("CandidatoEntrevistador")
+   candidatosAtivados          Candidato[]                 @relation("CandidatoAtivadoPor")
+   candidatoTags               CandidatoTag[]              @relation("CandidatoTagCriadoPor")
+   candidatoHistorico          CandidatoHistorico[]        @relation("CandidatoHistoricoUsuario")
+   candidatoMentores           CandidatoMentor[]           @relation("CandidatoMentorAtribuidoPor")
 
   @@unique([email])
   @@index([tipo])
