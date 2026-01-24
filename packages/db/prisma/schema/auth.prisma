@@ -30,6 +30,8 @@ model User {
   cancelamentosProcessados    CancelamentoEmergencial[]   @relation("cancelamentosProcessados")
   observacoes                 MedicoObservacao[]          @relation("observacoesMedico")
   observacoesCriadas          MedicoObservacao[]          @relation("observacoesAutor")
+  historicoScores             HistoricoScore[]            @relation("historicoScores")
+  notificacoes                Notificacao[]
 
   @@unique([email])
   @@index([tipo])
