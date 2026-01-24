@@ -98,15 +98,15 @@ type FaixaType = "P1" | "P2" | "P3" | "P4" | "P5";
 function getFaixaColor(faixa: FaixaType | string) {
   switch (faixa) {
     case "P1":
-      return "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600";
+      return "bg-green-700 hover:bg-green-800 text-white border-green-700";
     case "P2":
-      return "bg-brand-500 hover:bg-brand-600 text-white border-brand-600";
+      return "bg-green-500 hover:bg-green-600 text-white border-green-500";
     case "P3":
-      return "bg-amber-500 hover:bg-amber-600 text-white border-amber-600";
+      return "bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500";
     case "P4":
-      return "bg-orange-500 hover:bg-orange-600 text-white border-orange-600";
+      return "bg-orange-500 hover:bg-orange-600 text-white border-orange-500";
     case "P5":
-      return "bg-gradient-to-r from-gray-500 to-slate-600 text-white border-slate-600";
+      return "bg-red-500 hover:bg-red-600 text-white border-red-500";
     default:
       return "bg-slate-200 text-slate-800";
   }
