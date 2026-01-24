@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDrag, useDrop } from "react-aria";
 import { trpc, trpcClient } from "@/utils/trpc";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -23,7 +24,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InterviewForm } from "./components/interview-form";
+import { TrainingForm } from "./components/training-form";
 import { ActivationForm } from "./components/activation-form";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 const STAGES = [
   { id: "candidato", label: "Candidatos", color: "bg-slate-100 dark:bg-slate-800" },
@@ -40,6 +61,34 @@ export default function OnboardingPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showRejected, setShowRejected] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const moveStageMutation = useMutation({
+    mutationFn: (data: { candidatoId: string, novoEstagio: string }) => 
+      trpcClient.onboarding.moverEstagio.mutate(data as any),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast.success("Candidato movido com sucesso");
+    },
+    onError: (error) => {
+      toast.error("Erro ao mover candidato: " + error.message);
+    }
+  });
+
+  const handleMove = (candidatoId: string, fromStage: string, toStage: string) => {
+    const fromIndex = STAGES.findIndex(s => s.id === fromStage);
+    const toIndex = STAGES.findIndex(s => s.id === toStage);
+
+    if (toIndex <= fromIndex) {
+      toast.error("Movimento não permitido: só é possível avançar etapas");
+      return;
+    }
+
+    moveStageMutation.mutate({
+      candidatoId,
+      novoEstagio: toStage
+    });
+  };
 
   useMemo(() => {
     const timer = setTimeout(() => {
@@ -91,6 +140,7 @@ export default function OnboardingPage() {
               search={debouncedSearch}
               showRejected={showRejected}
               onSelect={setSelectedId}
+              onMove={handleMove}
             />
           ))}
         </div>
@@ -109,12 +159,14 @@ function KanbanColumn({
   stage, 
   search, 
   showRejected,
-  onSelect
+  onSelect,
+  onMove
 }: { 
   stage: typeof STAGES[number]; 
   search: string; 
   showRejected: boolean;
   onSelect: (id: string) => void;
+  onMove: (id: string, from: string, to: string) => void;
 }) {
   const { data, isLoading } = useQuery(trpc.onboarding.listarCandidatos.queryOptions({
     estagio: stage.id as StageId,
@@ -124,9 +176,31 @@ function KanbanColumn({
   }));
 
   const count = data?.total || 0;
+  const ref = useRef(null);
+  
+  const { dropProps, isDropTarget } = useDrop({
+    ref,
+    onDrop: async (e) => {
+      const item = e.items.find(item => item.kind === 'text' && item.types.has('application/json'));
+      if (item && item.kind === 'text') {
+        const data = JSON.parse(await (item as any).getText('application/json'));
+        if (data.stageId !== stage.id) {
+           onMove(data.id, data.stageId, stage.id);
+        }
+      }
+    }
+  });
 
   return (
-    <div className="flex flex-col w-1/5 min-w-[280px] h-full rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+    <div 
+      ref={ref} 
+      {...dropProps}
+      className={`flex flex-col w-1/5 min-w-[280px] h-full rounded-xl border transition-colors duration-200 ${
+        isDropTarget 
+          ? 'bg-brand-50/50 border-brand-300 ring-2 ring-brand-200 dark:bg-brand-900/20 dark:border-brand-700' 
+          : 'bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+      }`}
+    >
       <div className={`p-3 border-b border-slate-200 dark:border-slate-800 rounded-t-xl flex items-center justify-between ${stage.color}`}>
         <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-200">
           {stage.label}
@@ -148,9 +222,10 @@ function KanbanColumn({
             </div>
           ) : (
             data?.candidatos.map((candidato) => (
-              <CandidatoCard 
+              <DraggableCandidatoCard 
                 key={candidato.id} 
                 candidato={candidato} 
+                stageId={stage.id}
                 onClick={() => onSelect(candidato.id)}
               />
             ))
@@ -167,6 +242,23 @@ interface Candidato {
   createdAt: string | Date;
   status: string;
   especialidades: string[];
+  tags?: { id: string; nome: string }[];
+}
+
+function DraggableCandidatoCard({ candidato, stageId, onClick }: { candidato: Candidato; stageId: string; onClick: () => void }) {
+  const ref = useRef(null);
+  const { dragProps } = useDrag({
+    getItems: () => [{
+      'text/plain': candidato.id,
+      'application/json': JSON.stringify({ id: candidato.id, stageId })
+    }]
+  });
+
+  return (
+    <div ref={ref} {...dragProps} className="touch-none focus:outline-none">
+       <CandidatoCard candidato={candidato} onClick={onClick} />
+    </div>
+  );
 }
 
 function CandidatoCard({ candidato, onClick }: { candidato: Candidato; onClick: () => void }) {
@@ -228,6 +320,24 @@ function CandidatoCard({ candidato, onClick }: { candidato: Candidato; onClick: 
             )}
           </div>
         )}
+
+        {candidato.tags && candidato.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-2">
+            {candidato.tags.slice(0, 2).map((tag) => (
+              <Badge 
+                key={tag.id} 
+                className="text-[10px] px-1.5 h-5 bg-brand-100 text-brand-700 hover:bg-brand-100"
+              >
+                {tag.nome}
+              </Badge>
+            ))}
+            {candidato.tags.length > 2 && (
+              <Badge className="text-[10px] px-1.5 h-5 bg-brand-50 text-brand-600 hover:bg-brand-50">
+                +{candidato.tags.length - 2}
+              </Badge>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -245,17 +355,15 @@ interface CandidatoDetail {
   disponibilidade: string;
   status: string;
   createdAt: string | Date;
-  clickDoctorId: number | null;
   anexos: { id: string; nome: string; url: string; tamanho: number; tipo: string }[];
   tags: { id: string; nome: string; criadoPor?: { name: string | null } | null; createdAt: string | Date }[];
   historico: { id: string; acao: string; de?: string | null; para?: string | null; detalhes?: any; usuario?: { name: string | null } | null; createdAt: string | Date }[];
+  clickDoctorId?: number | null;
 }
-
 
 function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
   const [tagInput, setTagInput] = useState("");
   const queryClient = useQueryClient();
-  
 
   const adicionarTagMutation = useMutation({
     mutationFn: async (nome: string) => {
@@ -349,13 +457,36 @@ function CandidatoDrawer({
   onOpenChange: (open: boolean) => void; 
   candidatoId: string | null 
 }) {
-  const { data: candidato, isLoading } = useQuery({
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState("");
+  
+  const { data: candidato, isLoading, refetch } = useQuery({
     queryKey: ["candidato-detail", candidatoId],
     queryFn: async () => {
       const res = await trpcClient.onboarding.getCandidato.query({ id: candidatoId ?? "" });
       return res as unknown as CandidatoDetail;
     },
     enabled: !!candidatoId
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async () => {
+      if (!candidatoId) throw new Error("Candidato ID não encontrado");
+      return trpcClient.onboarding.rejeitarCandidato.mutate({
+        candidatoId,
+        motivo: rejectMotivo,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Candidato rejeitado com sucesso");
+      setShowRejectModal(false);
+      setRejectMotivo("");
+      refetch();
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Erro ao rejeitar candidato");
+    },
   });
 
   if (!candidatoId) return null;
@@ -561,34 +692,17 @@ function CandidatoDrawer({
                           </div>
                         </>
                       )}
+
+                      <Separator />
+                      <TagsSection candidato={candidato} />
                     </TabsContent>
 
                     <TabsContent value="entrevista" className="mt-0">
-                      <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
-                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                          <MessageSquare className="h-6 w-6 text-slate-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Avaliação de Entrevista</h3>
-                          <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">
-                            O formulário de avaliação da entrevista será implementado na próxima etapa.
-                          </p>
-                        </div>
-                      </div>
+                      <InterviewForm candidatoId={candidato.id} />
                     </TabsContent>
 
                     <TabsContent value="treinamento" className="mt-0">
-                      <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
-                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                          <GraduationCap className="h-6 w-6 text-slate-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Checklist de Treinamento</h3>
-                          <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">
-                            O checklist de treinamento e onboarding será implementado em breve.
-                          </p>
-                        </div>
-                      </div>
+                      <TrainingForm candidatoId={candidato.id} />
                     </TabsContent>
 
                     <TabsContent value="ativacao" className="mt-0">
@@ -596,7 +710,7 @@ function CandidatoDrawer({
                         <ActivationForm
                           candidatoId={candidato.id}
                           candidatoNome={candidato.nome}
-                          clickDoctorId={candidato.clickDoctorId}
+                          clickDoctorId={candidato.clickDoctorId ?? null}
                           onSuccess={() => {}}
                         />
                       )}
@@ -655,6 +769,7 @@ function CandidatoDrawer({
                 variant="destructive" 
                 className="w-full sm:w-auto"
                 disabled={candidato.status === 'rejeitado'}
+                onClick={() => setShowRejectModal(true)}
               >
                 Rejeitar Candidato
               </Button>
@@ -662,9 +777,98 @@ function CandidatoDrawer({
                 Fechar
               </Button>
             </SheetFooter>
+
+            <RejectionModal
+              open={showRejectModal}
+              onOpenChange={setShowRejectModal}
+              motivo={rejectMotivo}
+              onMotivoChange={setRejectMotivo}
+              onConfirm={() => rejectMutation.mutate()}
+              isLoading={rejectMutation.isPending}
+            />
           </>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+interface RejectionModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  motivo: string;
+  onMotivoChange: (motivo: string) => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+}
+
+function RejectionModal({
+  open,
+  onOpenChange,
+  motivo,
+  onMotivoChange,
+  onConfirm,
+  isLoading,
+}: RejectionModalProps) {
+  const isValid = motivo.trim().length >= 10;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            Rejeitar Candidato
+          </DialogTitle>
+          <DialogDescription>
+            Informe o motivo da rejeição. Este motivo será registrado no histórico do candidato.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="motivo" className="text-sm font-medium">
+              Motivo da Rejeição *
+            </Label>
+            <Textarea
+              id="motivo"
+              placeholder="Descreva o motivo da rejeição (mínimo 10 caracteres)..."
+              value={motivo}
+              onChange={(e) => onMotivoChange(e.target.value)}
+              className="min-h-[120px] resize-none"
+              disabled={isLoading}
+            />
+            <div className="text-xs text-slate-500">
+              {motivo.length}/10 caracteres mínimos
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+            <p className="text-sm text-red-700">
+              <strong>Atenção:</strong> Esta ação não pode ser desfeita. O candidato será marcado como rejeitado.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={!isValid || isLoading}
+            className="gap-2"
+          >
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Confirmar Rejeição
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
