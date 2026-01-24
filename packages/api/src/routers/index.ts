@@ -6,6 +6,9 @@ import { medicoRouter } from "./medico";
 import { solicitacoesRouter } from "./solicitacoes";
 import { aprovacoesRouter } from "./aprovacoes";
 import { dashboardRouter } from "./dashboard";
+import { analyticsRouter } from "./analytics";
+import { notificacoesRouter } from "./notificacoes";
+import { onboardingRouter } from "./onboarding";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -23,6 +26,9 @@ export const appRouter = router({
   solicitacoes: solicitacoesRouter,
   aprovacoes: aprovacoesRouter,
   dashboard: dashboardRouter,
+  analytics: analyticsRouter,
+  notificacoes: notificacoesRouter,
+  onboarding: onboardingRouter,
 });
 
 export type AppRouter = typeof appRouter;
