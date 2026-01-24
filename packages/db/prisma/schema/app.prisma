@@ -46,6 +46,15 @@ enum MotivoCancelamento {
   outro
 }
 
+enum NotificacaoTipo {
+  solicitacao_criada
+  solicitacao_aprovada
+  solicitacao_rejeitada
+  cancelamento_criado
+  cancelamento_aprovado
+  cancelamento_rejeitado
+}
+
 // ========== OBSERVACOES DO MEDICO ==========
 
 model MedicoObservacao {
@@ -164,10 +173,13 @@ model CancelamentoEmergencial {
   motivoRejeicao    String?
   processadoEm      DateTime?
   
-  // Strike
-  strikeAplicado    Boolean             @default(false)
-  
-  createdAt         DateTime            @default(now())
+   // Strike
+   strikeAplicado    Boolean             @default(false)
+   
+   // Reagendamento
+   prepararReagendamento Boolean?        @default(false)
+   
+   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
   @@index([medicoId])
@@ -235,4 +247,29 @@ model Auditoria {
   @@index([entidade])
   @@index([createdAt])
   @@map("auditoria")
+}
+
+// ========== NOTIFICACOES IN-APP ==========
+
+model Notificacao {
+  id              String          @id @default(uuid())
+  
+  usuarioId       String
+  usuario         User            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  
+  tipo            NotificacaoTipo
+  titulo          String
+  mensagem        String
+  lida            Boolean         @default(false)
+  
+  // Referencia tipada ao item relacionado
+  referenciaId    String?         // ID da Solicitacao ou CancelamentoEmergencial
+  referenciaTipo  String?         // "solicitacao" | "cancelamento"
+  
+  createdAt       DateTime        @default(now())
+
+  @@index([usuarioId, lida])
+  @@index([usuarioId, createdAt])
+  @@index([createdAt])
+  @@map("notificacao")
 }
