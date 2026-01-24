@@ -516,6 +516,30 @@ export const clickQueries = {
       [doctorId]
     ),
 
+  getSlotsComConsultaProximosDias: (doctorId: number, dias: number = 3) =>
+    query<{ dia_semana: string; hora: string; data: string }>(
+      `SELECT DISTINCT
+        CASE EXTRACT(DOW FROM c.start::timestamptz)
+          WHEN 0 THEN 'dom'
+          WHEN 1 THEN 'seg'
+          WHEN 2 THEN 'ter'
+          WHEN 3 THEN 'qua'
+          WHEN 4 THEN 'qui'
+          WHEN 5 THEN 'sex'
+          WHEN 6 THEN 'sab'
+        END AS dia_semana,
+        TO_CHAR(c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') AS hora,
+        TO_CHAR(c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') AS data
+      FROM consultings c
+      WHERE c.doctor_id = $1
+        AND c.user_id IS NOT NULL
+        AND c.negotiation_id IS NOT NULL
+        AND c.status IN ('confirmed', 'reschudeled')
+        AND DATE(c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo') >= CURRENT_DATE
+        AND DATE(c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo') < CURRENT_DATE + INTERVAL '1 day' * $2`,
+      [doctorId, dias]
+    ),
+
   getResumoConsultasMedico: (doctorId: number, dataInicio: string, dataFim: string) =>
     query<ResumoConsultasMedico>(
       `WITH consultas AS (
@@ -648,6 +672,124 @@ export const clickQueries = {
       GROUP BY DATE(c.start::timestamptz)
       ORDER BY DATE(c.start::timestamptz) ASC`,
       [doctorId, dias]
+    ),
+
+  // ============================================================================
+  // ANALYTICS DASHBOARD
+  // ============================================================================
+
+  /**
+   * Total de consultas agendadas em um período
+   * Exclui: slots vazios (user_id NULL) e status preconsulting
+   * @param horaLimite - Se informado (formato HH:MM), filtra apenas consultas com horário <= hora limite
+   *                     Usado para comparação justa entre períodos (ex: hoje até 15h vs ontem até 15h)
+   */
+  getTotalConsultasAgendadas: (dataInicio: string, dataFim: string, usarFiltroHora: boolean = false) =>
+    query<{ total_agendadas: number }>(
+      `SELECT COUNT(*)::int AS total_agendadas
+       FROM consultings
+       WHERE start::timestamptz AT TIME ZONE 'America/Sao_Paulo' >= $1::date
+         AND start::timestamptz AT TIME ZONE 'America/Sao_Paulo' < ($2::date + INTERVAL '1 day')
+         AND user_id IS NOT NULL
+         AND status NOT IN ('preconsulting')
+         AND (event_id NOT LIKE 'external%' OR event_id IS NULL)
+         AND (
+           $3::boolean = false 
+           OR (start::timestamptz AT TIME ZONE 'America/Sao_Paulo')::time <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::time
+         )`,
+      [dataInicio, dataFim, usarFiltroHora]
+    ),
+
+  getTotalConsultasRealizadas: (dataInicio: string, dataFim: string, usarFiltroHora: boolean = false) =>
+    query<{ total_realizadas: number }>(
+      `SELECT COUNT(*)::int AS total_realizadas
+       FROM consultings
+       WHERE start::timestamptz AT TIME ZONE 'America/Sao_Paulo' >= $1::date
+         AND start::timestamptz AT TIME ZONE 'America/Sao_Paulo' < ($2::date + INTERVAL '1 day')
+         AND completed = TRUE
+         AND status NOT IN ('preconsulting', 'cancelled')
+         AND (event_id NOT LIKE 'external%' OR event_id IS NULL)
+         AND (
+           $3::boolean = false 
+           OR (start::timestamptz AT TIME ZONE 'America/Sao_Paulo')::time <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::time
+         )`,
+      [dataInicio, dataFim, usarFiltroHora]
+    ),
+
+  getTotalConsultasCanceladas: (dataInicio: string, dataFim: string, usarFiltroHora: boolean = false) =>
+    query<{ total_canceladas: number }>(
+      `SELECT COUNT(*)::int AS total_canceladas
+       FROM consultings
+       WHERE start::timestamptz AT TIME ZONE 'America/Sao_Paulo' >= $1::date
+         AND start::timestamptz AT TIME ZONE 'America/Sao_Paulo' < ($2::date + INTERVAL '1 day')
+         AND user_id IS NOT NULL
+         AND negotiation_id IS NOT NULL
+         AND status = 'cancelled'
+         AND (event_id NOT LIKE 'external%' OR event_id IS NULL)
+         AND (
+           $3::boolean = false 
+           OR (start::timestamptz AT TIME ZONE 'America/Sao_Paulo')::time <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::time
+         )`,
+      [dataInicio, dataFim, usarFiltroHora]
+    ),
+
+  getTotalMedicosAtendendo: (dataInicio: string, dataFim: string, usarFiltroHora: boolean = false) =>
+    query<{ total_medicos: number }>(
+      `SELECT COUNT(DISTINCT c.doctor_id)::int AS total_medicos
+       FROM consultings c
+       WHERE c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo' >= $1::date
+         AND c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo' < ($2::date + INTERVAL '1 day')
+         AND c.user_id IS NOT NULL
+         AND c.negotiation_id IS NOT NULL
+         AND c.status NOT IN ('preconsulting', 'cancelled')
+         AND (c.event_id NOT LIKE 'external%' OR c.event_id IS NULL)
+         AND (
+           $3::boolean = false 
+           OR (c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo')::time <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::time
+         )`,
+      [dataInicio, dataFim, usarFiltroHora]
+    ),
+
+  getConsultasPorHorario: (dataInicio: string, dataFim: string) =>
+    query<{ hora: string; total: number }>(
+      `SELECT 
+         to_char(
+           date_trunc('hour', start::timestamptz AT TIME ZONE 'America/Sao_Paulo') + 
+           (FLOOR(EXTRACT(MINUTE FROM start::timestamptz AT TIME ZONE 'America/Sao_Paulo') / 20) * INTERVAL '20 minutes'),
+           'HH24:MI'
+         ) AS hora,
+         COUNT(*)::int AS total
+       FROM consultings
+       WHERE start::timestamptz AT TIME ZONE 'America/Sao_Paulo' >= $1::date
+         AND start::timestamptz AT TIME ZONE 'America/Sao_Paulo' < ($2::date + INTERVAL '1 day')
+         AND user_id IS NOT NULL
+         AND status NOT IN ('preconsulting')
+         AND (event_id NOT LIKE 'external%' OR event_id IS NULL)
+       GROUP BY hora
+       ORDER BY hora`,
+      [dataInicio, dataFim]
+    ),
+
+  // ============================================================================
+  // PRIORIDADES DOS MÉDICOS
+  // ============================================================================
+
+  getPrioridadesMedicos: () =>
+    query<{ doctor_id: number; priority: number }>(
+      `SELECT d.id AS doctor_id, COALESCE(d.priority, 0)::int AS priority
+       FROM doctors d
+       WHERE d.name IS NOT NULL 
+         AND d.name NOT ILIKE '%teste%'
+         AND d.name NOT ILIKE '%test%'
+       ORDER BY d.id`
+    ),
+
+  getPrioridadeMedico: (doctorId: number) =>
+    query<{ doctor_id: number; priority: number }>(
+      `SELECT d.id AS doctor_id, COALESCE(d.priority, 0)::int AS priority
+       FROM doctors d
+       WHERE d.id = $1`,
+      [doctorId]
     ),
 };
 

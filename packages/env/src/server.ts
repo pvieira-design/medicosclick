@@ -20,6 +20,8 @@ export const env = createEnv({
     CLICK_API_BASE_URL: z.string().url().default("https://clickcannabis.app.n8n.cloud/webhook"),
     CLICK_REPLICA_DATABASE_URL: z.string().optional(),
     CRON_SECRET: z.string().min(16).optional(),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().min(1).optional(),
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
@@ -30,6 +32,8 @@ export const env = createEnv({
     CLICK_API_BASE_URL: process.env.CLICK_API_BASE_URL,
     CLICK_REPLICA_DATABASE_URL: process.env.CLICK_REPLICA_DATABASE_URL,
     CRON_SECRET: process.env.CRON_SECRET,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
   },
   emptyStringAsUndefined: true,
 });

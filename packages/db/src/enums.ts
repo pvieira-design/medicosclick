@@ -5,4 +5,5 @@ export {
   SolicitacaoStatus,
   CancelamentoStatus,
   MotivoCancelamento,
+  NotificacaoTipo,
 } from "../prisma/generated/enums";

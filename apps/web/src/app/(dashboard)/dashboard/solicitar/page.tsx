@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/utils/trpc";
@@ -291,8 +291,8 @@ export default function DoctorRequestSchedulePage() {
             })}
 
             {timeSlots.map((time) => (
-              <>
-                <div key={`label-${time}`} className="sticky left-0 bg-background z-10 pr-2 py-0.5 text-right flex items-center justify-end">
+              <Fragment key={time}>
+                <div className="sticky left-0 bg-background z-10 pr-2 py-0.5 text-right flex items-center justify-end">
                   <span className="text-[10px] font-medium text-muted-foreground font-mono">{time}</span>
                 </div>
                 {DAYS.map((day) => {
@@ -331,7 +331,7 @@ export default function DoctorRequestSchedulePage() {
                     </div>
                   );
                 })}
-              </>
+              </Fragment>
             ))}
           </div>
         </div>

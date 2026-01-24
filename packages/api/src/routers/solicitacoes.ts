@@ -4,7 +4,10 @@ import prisma from "@clickmedicos/db";
 import { clickQueries } from "@clickmedicos/db/click-replica";
 import { router, medicoProcedure } from "../index";
 import { sincronizarHorariosMedicoComClick } from "../services/sync.service";
-import { notificarSolicitacaoRecebida } from "../services/whatsapp-notification.service";
+import {
+  notificarSolicitacaoCriada,
+  notificarCancelamentoCriado,
+} from "../services/notification.service";
 
 const DiaSemanaEnum = z.enum(["dom", "seg", "ter", "qua", "qui", "sex", "sab"]);
 const MotivoCancelamentoEnum = z.enum([
@@ -43,6 +46,21 @@ function horarioNoPeriodo(horario: string, periodo: PeriodoConfig): boolean {
   const inicio = parseHorario(periodo.inicio);
   const fim = parseHorario(periodo.fim);
   return minutos >= inicio && minutos < fim;
+}
+
+function getDiasBloqueadosParaCancelamento(): string[] {
+  const dias = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
+  const bloqueados: string[] = [];
+  const hoje = new Date();
+
+  for (let i = 0; i < 3; i++) {
+    const data = new Date(hoje);
+    data.setDate(hoje.getDate() + i);
+    const dia = dias[data.getDay()];
+    if (dia) bloqueados.push(dia);
+  }
+
+  return bloqueados;
 }
 
 export const solicitacoesRouter = router({
@@ -134,8 +152,8 @@ export const solicitacoesRouter = router({
         },
       });
 
-      notificarSolicitacaoRecebida(ctx.medico.id).catch((err) => {
-        console.error("[WhatsApp] Falha ao notificar solicitação recebida:", err);
+      notificarSolicitacaoCriada(ctx.medico.id, solicitacao.id, slotsNovos.length).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar solicitação criada:", err);
       });
 
       return {
@@ -226,6 +244,18 @@ export const solicitacoesRouter = router({
         });
       }
 
+      const diasPermitidos = getDiasBloqueadosParaCancelamento();
+      const slotsInvalidos = input.slots.filter(
+        (slot) => !diasPermitidos.includes(slot.diaSemana)
+      );
+
+      if (slotsInvalidos.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cancelamento emergencial so permitido para os proximos 3 dias: ${diasPermitidos.join(", ")}`,
+        });
+      }
+
       const cancelamento = await prisma.cancelamentoEmergencial.create({
         data: {
           medicoId: ctx.medico.id,
@@ -235,6 +265,10 @@ export const solicitacoesRouter = router({
           motivoDescricao: input.motivoDescricao,
           status: "pendente",
         },
+      });
+
+      notificarCancelamentoCriado(ctx.medico.id, cancelamento.id).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar cancelamento criado:", err);
       });
 
       return cancelamento;
@@ -272,6 +306,45 @@ export const solicitacoesRouter = router({
     .input(
       z.object({
         slots: z.array(SlotSchema),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.medico.clickDoctorId) {
+        return { slotsComConsulta: [], slotsSemConsulta: input.slots };
+      }
+
+      const diaMap = {
+        dom: 0,
+        seg: 1,
+        ter: 2,
+        qua: 3,
+        qui: 4,
+        sex: 5,
+        sab: 6,
+      } as const;
+
+      const checks = await Promise.all(
+        input.slots.map(async (slot) => {
+          const diaSemanaNum = diaMap[slot.diaSemana as keyof typeof diaMap];
+          const temConsulta = await clickQueries.temConsultaNoHorario(
+            ctx.medico.clickDoctorId!,
+            diaSemanaNum,
+            slot.horario
+          );
+          return { slot, temConsulta };
+        })
+      );
+
+      const slotsComConsulta = checks.filter((c) => c.temConsulta).map((c) => c.slot);
+      const slotsSemConsulta = checks.filter((c) => !c.temConsulta).map((c) => c.slot);
+
+      return { slotsComConsulta, slotsSemConsulta };
+    }),
+
+  verificarSlotsComConsultaEmLote: medicoProcedure
+    .input(
+      z.object({
+        slots: z.array(SlotSchema).max(50),
       })
     )
     .query(async ({ ctx, input }) => {

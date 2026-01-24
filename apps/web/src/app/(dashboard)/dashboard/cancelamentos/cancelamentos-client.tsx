@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Pagination,
   PaginationContent,
@@ -73,6 +74,7 @@ export default function CancelamentosClient() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [aplicarStrike, setAplicarStrike] = useState(true);
 
   const queryClient = useQueryClient();
 
@@ -83,13 +85,18 @@ export default function CancelamentosClient() {
   }));
 
   const approveMutation = useMutation({
-    mutationFn: (input: { cancelamentoId: string }) => 
+    mutationFn: (input: { cancelamentoId: string; aplicarStrike: boolean }) => 
       trpcClient.aprovacoes.aprovarCancelamento.mutate(input),
-    onSuccess: () => {
-      toast.success("Cancelamento aprovado. Strike aplicado ao medico.");
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.aplicarStrike 
+          ? "Cancelamento aprovado. Strike aplicado ao medico."
+          : "Cancelamento aprovado sem aplicar strike."
+      );
       queryClient.invalidateQueries();
       setIsApproveOpen(false);
       setSelectedId(null);
+      setAplicarStrike(true);
     },
     onError: (err: { message: string }) => {
       toast.error(`Erro ao aprovar: ${err.message}`);
@@ -113,7 +120,7 @@ export default function CancelamentosClient() {
 
   const handleApprove = () => {
     if (selectedId) {
-      approveMutation.mutate({ cancelamentoId: selectedId });
+      approveMutation.mutate({ cancelamentoId: selectedId, aplicarStrike });
     }
   };
 
@@ -288,29 +295,47 @@ export default function CancelamentosClient() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-rose-600">
               <ShieldAlert className="h-5 w-5" />
-              Confirmar Aprovacao e Strike
+              Confirmar Aprovacao
             </DialogTitle>
             <DialogDescription>
               Voce esta prestes a aprovar o cancelamento desta agenda.
             </DialogDescription>
           </DialogHeader>
           
-          <Alert variant="destructive" className="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/20 dark:border-rose-900">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Acao com Penalidade</AlertTitle>
-            <AlertDescription>
-              Ao aprovar, um <strong>Strike</strong> sera automaticamente adicionado ao perfil do medico. Se o medico atingir 3 strikes, ele podera ser suspenso.
-            </AlertDescription>
-          </Alert>
+          {aplicarStrike && (
+            <Alert variant="destructive" className="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/20 dark:border-rose-900">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Acao com Penalidade</AlertTitle>
+              <AlertDescription>
+                Um <strong>Strike</strong> sera adicionado ao perfil do medico. Se o medico atingir 3 strikes, ele podera ser suspenso.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="flex items-center space-x-3 py-2">
+            <Checkbox
+              id="aplicar-strike"
+              checked={aplicarStrike}
+              onCheckedChange={(checked) => setAplicarStrike(checked === true)}
+            />
+            <Label htmlFor="aplicar-strike" className="text-sm font-medium cursor-pointer">
+              Aplicar Strike ao Medico
+            </Label>
+          </div>
 
           <DialogFooter className="gap-2 sm:justify-end">
             <Button variant="ghost" onClick={() => setIsApproveOpen(false)}>Cancelar</Button>
             <Button 
-              variant="destructive" 
+              variant={aplicarStrike ? "destructive" : "default"}
               onClick={handleApprove}
               disabled={approveMutation.isPending}
             >
-              {approveMutation.isPending ? "Processando..." : "Confirmar e Aplicar Strike"}
+              {approveMutation.isPending 
+                ? "Processando..." 
+                : aplicarStrike 
+                  ? "Confirmar e Aplicar Strike"
+                  : "Confirmar sem Strike"
+              }
             </Button>
           </DialogFooter>
         </DialogContent>

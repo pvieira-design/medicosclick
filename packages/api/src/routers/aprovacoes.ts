@@ -3,7 +3,12 @@ import { TRPCError } from "@trpc/server";
 import prisma from "@clickmedicos/db";
 import { router, staffProcedure, diretorProcedure } from "../index";
 import { sincronizarHorariosMedicoComClick } from "../services/sync.service";
-import { notificarSolicitacaoAtualizada } from "../services/whatsapp-notification.service";
+import {
+  notificarSolicitacaoAprovada,
+  notificarSolicitacaoRejeitada,
+  notificarCancelamentoAprovado,
+  notificarCancelamentoRejeitado,
+} from "../services/notification.service";
 
 const SlotSchema = z.object({
   diaSemana: z.enum(["dom", "seg", "ter", "qua", "qui", "sex", "sab"]),
@@ -147,8 +152,13 @@ export const aprovacoesRouter = router({
         });
       }
 
-      notificarSolicitacaoAtualizada(solicitacao.medicoId).catch((err) => {
-        console.error("[WhatsApp] Falha ao notificar solicitação aprovada:", err);
+      const slotsRejeitadosCount = (input.slotsRejeitados ?? []).length;
+      notificarSolicitacaoAprovada(
+        solicitacao.medicoId,
+        input.solicitacaoId,
+        slotsRejeitadosCount > 0 ? { aprovados: slotsAprovados.length, rejeitados: slotsRejeitadosCount } : undefined
+      ).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar solicitação aprovada:", err);
       });
 
       return result;
@@ -206,8 +216,12 @@ export const aprovacoesRouter = router({
         return solicitacaoAtualizada;
       });
 
-      notificarSolicitacaoAtualizada(solicitacao.medicoId).catch((err) => {
-        console.error("[WhatsApp] Falha ao notificar solicitação rejeitada:", err);
+      notificarSolicitacaoRejeitada(
+        solicitacao.medicoId,
+        input.solicitacaoId,
+        input.motivoRejeicao
+      ).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar solicitação rejeitada:", err);
       });
 
       return result;
@@ -311,8 +325,8 @@ export const aprovacoesRouter = router({
         });
       }
 
-      notificarSolicitacaoAtualizada(solicitacao.medicoId).catch((err) => {
-        console.error("[WhatsApp] Falha ao notificar solicitação aprovada (override):", err);
+      notificarSolicitacaoAprovada(solicitacao.medicoId, input.solicitacaoId).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar solicitação aprovada (override):", err);
       });
 
       return result;
@@ -359,7 +373,10 @@ export const aprovacoesRouter = router({
     }),
 
   aprovarCancelamento: staffProcedure
-    .input(z.object({ cancelamentoId: z.string() }))
+    .input(z.object({ 
+      cancelamentoId: z.string(),
+      aplicarStrike: z.boolean()
+    }))
     .mutation(async ({ ctx, input }) => {
       const cancelamento = await prisma.cancelamentoEmergencial.findUnique({
         where: { id: input.cancelamentoId },
@@ -383,20 +400,24 @@ export const aprovacoesRouter = router({
       const slots = cancelamento.slots as Array<{ diaSemana: string; horario: string }>;
 
       const result = await prisma.$transaction(async (tx) => {
+        const strikeAntes = cancelamento.medico.strikes;
+
         const cancelamentoAtualizado = await tx.cancelamentoEmergencial.update({
           where: { id: input.cancelamentoId },
           data: {
             status: "aprovado",
             processadoPorId: ctx.user.id,
             processadoEm: new Date(),
-            strikeAplicado: true,
+            strikeAplicado: input.aplicarStrike,
           },
         });
 
-        await tx.user.update({
-          where: { id: cancelamento.medicoId },
-          data: { strikes: { increment: 1 } },
-        });
+        if (input.aplicarStrike) {
+          await tx.user.update({
+            where: { id: cancelamento.medicoId },
+            data: { strikes: { increment: 1 } },
+          });
+        }
 
         for (const slot of slots) {
           await tx.medicoHorario.updateMany({
@@ -417,8 +438,12 @@ export const aprovacoesRouter = router({
             acao: "APROVAR_CANCELAMENTO",
             entidade: "cancelamento_emergencial",
             entidadeId: input.cancelamentoId,
-            dadosAntes: { status: "pendente", strikeAntes: cancelamento.medico.strikes },
-            dadosDepois: { status: "aprovado", strikeAplicado: true },
+            dadosAntes: { status: "pendente", strikeAntes },
+            dadosDepois: { 
+              status: "aprovado", 
+              strikeAplicado: input.aplicarStrike,
+              strikeDepois: input.aplicarStrike ? strikeAntes + 1 : strikeAntes
+            },
           },
         });
 
@@ -442,6 +467,10 @@ export const aprovacoesRouter = router({
           },
         });
       }
+
+      notificarCancelamentoAprovado(cancelamento.medicoId, input.cancelamentoId).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar cancelamento aprovado:", err);
+      });
 
       return result;
     }),
@@ -496,6 +525,14 @@ export const aprovacoesRouter = router({
         });
 
         return cancelamentoAtualizado;
+      });
+
+      notificarCancelamentoRejeitado(
+        cancelamento.medicoId,
+        input.cancelamentoId,
+        input.motivoRejeicao
+      ).catch((err: unknown) => {
+        console.error("[Notification] Falha ao notificar cancelamento rejeitado:", err);
       });
 
       return result;

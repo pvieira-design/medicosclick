@@ -1,0 +1,465 @@
+/* Untitled UI Theme - ClickMedicos Green Brand (#285E31) */
+/* This file contains the complete Untitled UI color system adapted for ClickMedicos */
+
+@theme {
+    /* FONT FAMILY */
+    --font-body: var(--font-inter, "Inter"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-display: var(--font-inter, "Inter"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-mono: ui-monospace, "Roboto Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* FONT SIZE */
+    --text-xs: calc(var(--spacing) * 3);
+    --text-xs--line-height: calc(var(--spacing) * 4.5);
+
+    --text-sm: calc(var(--spacing) * 3.5);
+    --text-sm--line-height: calc(var(--spacing) * 5);
+
+    --text-md: calc(var(--spacing) * 4);
+    --text-md--line-height: calc(var(--spacing) * 6);
+
+    --text-lg: calc(var(--spacing) * 4.5);
+    --text-lg--line-height: calc(var(--spacing) * 7);
+
+    --text-xl: calc(var(--spacing) * 5);
+    --text-xl--line-height: calc(var(--spacing) * 7.5);
+
+    --text-display-xs: calc(var(--spacing) * 6);
+    --text-display-xs--line-height: calc(var(--spacing) * 8);
+
+    --text-display-sm: calc(var(--spacing) * 7.5);
+    --text-display-sm--line-height: calc(var(--spacing) * 9.5);
+
+    --text-display-md: calc(var(--spacing) * 9);
+    --text-display-md--line-height: calc(var(--spacing) * 11);
+    --text-display-md--letter-spacing: -0.72px;
+
+    --text-display-lg: calc(var(--spacing) * 12);
+    --text-display-lg--line-height: calc(var(--spacing) * 15);
+    --text-display-lg--letter-spacing: -0.96px;
+
+    --text-display-xl: calc(var(--spacing) * 15);
+    --text-display-xl--line-height: calc(var(--spacing) * 18);
+    --text-display-xl--letter-spacing: -1.2px;
+
+    --text-display-2xl: calc(var(--spacing) * 18);
+    --text-display-2xl--line-height: calc(var(--spacing) * 22.5);
+    --text-display-2xl--letter-spacing: -1.44px;
+
+    /* MAX WIDTH */
+    --max-width-container: 1280px;
+
+    /* BREAKPOINTS */
+    --breakpoint-xxs: 320px;
+    --breakpoint-xs: 600px;
+
+    /* RADIUS */
+    --radius-none: 0px;
+    --radius-xs: 0.125rem;
+    --radius-sm: 0.25rem;
+    --radius-DEFAULT: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --radius-3xl: 1.5rem;
+    --radius-full: 9999px;
+
+    /* SHADOW */
+    --shadow-xs: 0px 1px 2px rgba(10, 13, 18, 0.05);
+    --shadow-sm: 0px 1px 3px rgba(10, 13, 18, 0.1), 0px 1px 2px -1px rgba(10, 13, 18, 0.1);
+    --shadow-md: 0px 4px 6px -1px rgba(10, 13, 18, 0.1), 0px 2px 4px -2px rgba(10, 13, 18, 0.06);
+    --shadow-lg: 0px 12px 16px -4px rgba(10, 13, 18, 0.08), 0px 4px 6px -2px rgba(10, 13, 18, 0.03), 0px 2px 2px -1px rgba(10, 13, 18, 0.04);
+    --shadow-xl: 0px 20px 24px -4px rgba(10, 13, 18, 0.08), 0px 8px 8px -4px rgba(10, 13, 18, 0.03), 0px 3px 3px -1.5px rgba(10, 13, 18, 0.04);
+    --shadow-2xl: 0px 24px 48px -12px rgba(10, 13, 18, 0.18), 0px 4px 4px -2px rgba(10, 13, 18, 0.04);
+    --shadow-3xl: 0px 32px 64px -12px rgba(10, 13, 18, 0.14), 0px 5px 5px -2.5px rgba(10, 13, 18, 0.04);
+
+    --shadow-skeumorphic: 0px 0px 0px 1px rgba(10, 13, 18, 0.18) inset, 0px -2px 0px 0px rgba(10, 13, 18, 0.05) inset;
+    --shadow-xs-skeumorphic: var(--shadow-skeumorphic), var(--shadow-xs);
+
+    /* ANIMATIONS */
+    --animate-marquee: marquee 60s linear infinite;
+    --animate-caret-blink: caret-blink 1s infinite;
+
+    @keyframes marquee {
+        0% {
+            transform: translateX(0);
+        }
+        100% {
+            transform: translateX(-100%);
+        }
+    }
+
+    @keyframes caret-blink {
+        0%,
+        50% {
+            opacity: 1;
+        }
+        51%,
+        100% {
+            opacity: 0;
+        }
+    }
+
+    /* BASE COLOR */
+    --color-transparent: rgb(0 0 0 / 0);
+    --color-white: rgb(255 255 255);
+    --color-black: rgb(0 0 0);
+    --color-alpha-white: rgb(255 255 255);
+    --color-alpha-black: rgb(0 0 0);
+
+    /* BRAND COLOR - ClickMedicos Green (#285E31) */
+    /* Generated from #285E31 with proper tint/shade distribution */
+    --color-brand-25: rgb(246 251 247);
+    --color-brand-50: rgb(237 247 239);
+    --color-brand-100: rgb(214 235 218);
+    --color-brand-200: rgb(173 212 181);
+    --color-brand-300: rgb(122 182 134);
+    --color-brand-400: rgb(72 148 88);
+    --color-brand-500: rgb(40 94 49);
+    --color-brand-600: rgb(33 79 41);
+    --color-brand-700: rgb(27 64 34);
+    --color-brand-800: rgb(21 50 27);
+    --color-brand-900: rgb(15 38 20);
+    --color-brand-950: rgb(10 26 14);
+
+    /* ERROR COLOR */
+    --color-error-25: rgb(255 251 250);
+    --color-error-50: rgb(254 243 242);
+    --color-error-100: rgb(254 228 226);
+    --color-error-200: rgb(254 205 202);
+    --color-error-300: rgb(253 162 155);
+    --color-error-400: rgb(249 112 102);
+    --color-error-500: rgb(240 68 56);
+    --color-error-600: rgb(217 45 32);
+    --color-error-700: rgb(180 35 24);
+    --color-error-800: rgb(145 32 24);
+    --color-error-900: rgb(122 39 26);
+    --color-error-950: rgb(85 22 12);
+
+    /* WARNING COLOR */
+    --color-warning-25: rgb(255 252 245);
+    --color-warning-50: rgb(255 250 235);
+    --color-warning-100: rgb(254 240 199);
+    --color-warning-200: rgb(254 223 137);
+    --color-warning-300: rgb(254 200 75);
+    --color-warning-400: rgb(253 176 34);
+    --color-warning-500: rgb(247 144 9);
+    --color-warning-600: rgb(220 104 3);
+    --color-warning-700: rgb(181 71 8);
+    --color-warning-800: rgb(147 55 13);
+    --color-warning-900: rgb(122 46 14);
+    --color-warning-950: rgb(78 29 9);
+
+    /* SUCCESS COLOR */
+    --color-success-25: rgb(246 254 249);
+    --color-success-50: rgb(236 253 243);
+    --color-success-100: rgb(220 250 230);
+    --color-success-200: rgb(171 239 198);
+    --color-success-300: rgb(117 224 167);
+    --color-success-400: rgb(71 205 137);
+    --color-success-500: rgb(23 178 106);
+    --color-success-600: rgb(7 148 85);
+    --color-success-700: rgb(6 118 71);
+    --color-success-800: rgb(8 93 58);
+    --color-success-900: rgb(7 77 49);
+    --color-success-950: rgb(5 51 33);
+
+    /* GRAY COLOR (Neutral) */
+    --color-gray-25: rgb(253 253 253);
+    --color-gray-50: rgb(250 250 250);
+    --color-gray-100: rgb(245 245 245);
+    --color-gray-200: rgb(233 234 235);
+    --color-gray-300: rgb(213 215 218);
+    --color-gray-400: rgb(164 167 174);
+    --color-gray-500: rgb(113 118 128);
+    --color-gray-600: rgb(83 88 98);
+    --color-gray-700: rgb(65 70 81);
+    --color-gray-800: rgb(37 43 55);
+    --color-gray-900: rgb(24 29 39);
+    --color-gray-950: rgb(10 13 18);
+
+    /* BLUE COLOR */
+    --color-blue-25: rgb(245 250 255);
+    --color-blue-50: rgb(239 248 255);
+    --color-blue-100: rgb(209 233 255);
+    --color-blue-200: rgb(178 221 255);
+    --color-blue-300: rgb(132 202 255);
+    --color-blue-400: rgb(83 177 253);
+    --color-blue-500: rgb(46 144 250);
+    --color-blue-600: rgb(21 112 239);
+    --color-blue-700: rgb(23 92 211);
+    --color-blue-800: rgb(24 73 169);
+    --color-blue-900: rgb(25 65 133);
+    --color-blue-950: rgb(16 42 86);
+
+    /* INDIGO COLOR */
+    --color-indigo-25: rgb(245 248 255);
+    --color-indigo-50: rgb(238 244 255);
+    --color-indigo-100: rgb(224 234 255);
+    --color-indigo-200: rgb(199 215 254);
+    --color-indigo-300: rgb(164 188 253);
+    --color-indigo-400: rgb(128 152 249);
+    --color-indigo-500: rgb(97 114 243);
+    --color-indigo-600: rgb(68 76 231);
+    --color-indigo-700: rgb(53 56 205);
+    --color-indigo-800: rgb(45 49 166);
+    --color-indigo-900: rgb(45 50 130);
+    --color-indigo-950: rgb(31 35 91);
+
+    /* PURPLE COLOR */
+    --color-purple-25: rgb(250 250 255);
+    --color-purple-50: rgb(244 243 255);
+    --color-purple-100: rgb(235 233 254);
+    --color-purple-200: rgb(217 214 254);
+    --color-purple-300: rgb(189 180 254);
+    --color-purple-400: rgb(155 138 251);
+    --color-purple-500: rgb(122 90 248);
+    --color-purple-600: rgb(105 56 239);
+    --color-purple-700: rgb(89 37 220);
+    --color-purple-800: rgb(74 31 184);
+    --color-purple-900: rgb(62 28 150);
+    --color-purple-950: rgb(39 17 95);
+
+    /* PINK COLOR */
+    --color-pink-25: rgb(254 246 251);
+    --color-pink-50: rgb(253 242 250);
+    --color-pink-100: rgb(252 231 246);
+    --color-pink-200: rgb(252 206 238);
+    --color-pink-300: rgb(250 167 224);
+    --color-pink-400: rgb(246 112 199);
+    --color-pink-500: rgb(238 70 188);
+    --color-pink-600: rgb(221 37 144);
+    --color-pink-700: rgb(193 21 116);
+    --color-pink-800: rgb(158 22 95);
+    --color-pink-900: rgb(133 22 81);
+    --color-pink-950: rgb(78 13 48);
+
+    /* ORANGE COLOR */
+    --color-orange-25: rgb(254 250 245);
+    --color-orange-50: rgb(254 246 238);
+    --color-orange-100: rgb(253 234 215);
+    --color-orange-200: rgb(249 219 175);
+    --color-orange-300: rgb(247 178 122);
+    --color-orange-400: rgb(243 135 68);
+    --color-orange-500: rgb(239 104 32);
+    --color-orange-600: rgb(224 79 22);
+    --color-orange-700: rgb(185 56 21);
+    --color-orange-800: rgb(147 47 25);
+    --color-orange-900: rgb(119 41 23);
+    --color-orange-950: rgb(81 28 16);
+
+    /* YELLOW COLOR */
+    --color-yellow-25: rgb(254 253 240);
+    --color-yellow-50: rgb(254 251 232);
+    --color-yellow-100: rgb(254 247 195);
+    --color-yellow-200: rgb(254 238 149);
+    --color-yellow-300: rgb(253 226 114);
+    --color-yellow-400: rgb(250 197 21);
+    --color-yellow-500: rgb(234 170 8);
+    --color-yellow-600: rgb(202 133 4);
+    --color-yellow-700: rgb(161 92 7);
+    --color-yellow-800: rgb(133 74 14);
+    --color-yellow-900: rgb(113 59 18);
+    --color-yellow-950: rgb(84 44 13);
+
+    /* GREEN COLOR */
+    --color-green-25: rgb(246 254 249);
+    --color-green-50: rgb(237 252 242);
+    --color-green-100: rgb(211 248 223);
+    --color-green-200: rgb(170 240 196);
+    --color-green-300: rgb(115 226 163);
+    --color-green-400: rgb(60 203 127);
+    --color-green-500: rgb(22 179 100);
+    --color-green-600: rgb(9 146 80);
+    --color-green-700: rgb(8 116 67);
+    --color-green-800: rgb(9 92 55);
+    --color-green-900: rgb(8 76 46);
+    --color-green-950: rgb(5 46 28);
+
+    /* TEAL COLOR */
+    --color-teal-25: rgb(246 254 252);
+    --color-teal-50: rgb(240 253 249);
+    --color-teal-100: rgb(204 251 239);
+    --color-teal-200: rgb(153 246 224);
+    --color-teal-300: rgb(95 233 208);
+    --color-teal-400: rgb(46 211 183);
+    --color-teal-500: rgb(21 183 158);
+    --color-teal-600: rgb(14 147 132);
+    --color-teal-700: rgb(16 117 105);
+    --color-teal-800: rgb(18 93 86);
+    --color-teal-900: rgb(19 78 72);
+    --color-teal-950: rgb(10 41 38);
+
+    /* CYAN COLOR */
+    --color-cyan-25: rgb(245 254 255);
+    --color-cyan-50: rgb(236 253 255);
+    --color-cyan-100: rgb(207 249 254);
+    --color-cyan-200: rgb(165 240 252);
+    --color-cyan-300: rgb(103 227 249);
+    --color-cyan-400: rgb(34 204 238);
+    --color-cyan-500: rgb(6 174 212);
+    --color-cyan-600: rgb(8 138 178);
+    --color-cyan-700: rgb(14 112 144);
+    --color-cyan-800: rgb(21 91 117);
+    --color-cyan-900: rgb(22 76 99);
+    --color-cyan-950: rgb(13 45 58);
+
+    /* UTILITY COLORS */
+    --color-utility-brand-50: var(--color-brand-50);
+    --color-utility-brand-100: var(--color-brand-100);
+    --color-utility-brand-200: var(--color-brand-200);
+    --color-utility-brand-300: var(--color-brand-300);
+    --color-utility-brand-400: var(--color-brand-400);
+    --color-utility-brand-500: var(--color-brand-500);
+    --color-utility-brand-600: var(--color-brand-600);
+    --color-utility-brand-700: var(--color-brand-700);
+
+    --color-utility-gray-50: var(--color-gray-50);
+    --color-utility-gray-100: var(--color-gray-100);
+    --color-utility-gray-200: var(--color-gray-200);
+    --color-utility-gray-300: var(--color-gray-300);
+    --color-utility-gray-400: var(--color-gray-400);
+    --color-utility-gray-500: var(--color-gray-500);
+    --color-utility-gray-600: var(--color-gray-600);
+    --color-utility-gray-700: var(--color-gray-700);
+
+    --color-utility-error-50: var(--color-error-50);
+    --color-utility-error-100: var(--color-error-100);
+    --color-utility-error-200: var(--color-error-200);
+    --color-utility-error-300: var(--color-error-300);
+    --color-utility-error-400: var(--color-error-400);
+    --color-utility-error-500: var(--color-error-500);
+    --color-utility-error-600: var(--color-error-600);
+    --color-utility-error-700: var(--color-error-700);
+
+    --color-utility-warning-50: var(--color-warning-50);
+    --color-utility-warning-100: var(--color-warning-100);
+    --color-utility-warning-200: var(--color-warning-200);
+    --color-utility-warning-300: var(--color-warning-300);
+    --color-utility-warning-400: var(--color-warning-400);
+    --color-utility-warning-500: var(--color-warning-500);
+    --color-utility-warning-600: var(--color-warning-600);
+    --color-utility-warning-700: var(--color-warning-700);
+
+    --color-utility-success-50: var(--color-success-50);
+    --color-utility-success-100: var(--color-success-100);
+    --color-utility-success-200: var(--color-success-200);
+    --color-utility-success-300: var(--color-success-300);
+    --color-utility-success-400: var(--color-success-400);
+    --color-utility-success-500: var(--color-success-500);
+    --color-utility-success-600: var(--color-success-600);
+    --color-utility-success-700: var(--color-success-700);
+
+    /* SEMANTIC FOREGROUND COLORS */
+    --color-fg-primary: var(--color-gray-900);
+    --color-fg-secondary: var(--color-gray-700);
+    --color-fg-tertiary: var(--color-gray-600);
+    --color-fg-quaternary: var(--color-gray-500);
+    --color-fg-quinary: var(--color-gray-400);
+    --color-fg-senary: var(--color-gray-300);
+    --color-fg-white: var(--color-white);
+    --color-fg-disabled: var(--color-gray-400);
+    --color-fg-placeholder: var(--color-gray-500);
+    --color-fg-brand-primary: var(--color-brand-600);
+    --color-fg-brand-secondary: var(--color-brand-500);
+    --color-fg-error-primary: var(--color-error-600);
+    --color-fg-error-secondary: var(--color-error-500);
+    --color-fg-warning-primary: var(--color-warning-600);
+    --color-fg-warning-secondary: var(--color-warning-500);
+    --color-fg-success-primary: var(--color-success-600);
+    --color-fg-success-secondary: var(--color-success-500);
+
+    /* SEMANTIC BACKGROUND COLORS */
+    --color-bg-primary: var(--color-white);
+    --color-bg-primary_alt: var(--color-white);
+    --color-bg-secondary: var(--color-gray-50);
+    --color-bg-secondary_alt: var(--color-gray-50);
+    --color-bg-tertiary: var(--color-gray-100);
+    --color-bg-quaternary: var(--color-gray-200);
+    --color-bg-active: var(--color-gray-50);
+    --color-bg-disabled: var(--color-gray-100);
+    --color-bg-overlay: rgb(10 13 18 / 0.7);
+    --color-bg-brand-primary: var(--color-brand-50);
+    --color-bg-brand-secondary: var(--color-brand-100);
+    --color-bg-brand-solid: var(--color-brand-600);
+    --color-bg-brand-solid_hover: var(--color-brand-700);
+    --color-bg-brand-section: var(--color-brand-800);
+    --color-bg-error-primary: var(--color-error-50);
+    --color-bg-error-secondary: var(--color-error-100);
+    --color-bg-error-solid: var(--color-error-600);
+    --color-bg-warning-primary: var(--color-warning-50);
+    --color-bg-warning-secondary: var(--color-warning-100);
+    --color-bg-warning-solid: var(--color-warning-600);
+    --color-bg-success-primary: var(--color-success-50);
+    --color-bg-success-secondary: var(--color-success-100);
+    --color-bg-success-solid: var(--color-success-600);
+
+    /* SEMANTIC BORDER COLORS */
+    --color-border-primary: var(--color-gray-300);
+    --color-border-secondary: var(--color-gray-200);
+    --color-border-tertiary: var(--color-gray-100);
+    --color-border-disabled: var(--color-gray-300);
+    --color-border-brand: var(--color-brand-300);
+    --color-border-brand-solid: var(--color-brand-600);
+    --color-border-error: var(--color-error-300);
+    --color-border-error-solid: var(--color-error-600);
+}
+
+/* DARK MODE OVERRIDES */
+.dark {
+    --color-alpha-white: rgb(0 0 0);
+    --color-alpha-black: rgb(255 255 255);
+
+    /* SEMANTIC FOREGROUND COLORS - DARK */
+    --color-fg-primary: var(--color-gray-50);
+    --color-fg-secondary: var(--color-gray-300);
+    --color-fg-tertiary: var(--color-gray-400);
+    --color-fg-quaternary: var(--color-gray-400);
+    --color-fg-quinary: var(--color-gray-500);
+    --color-fg-senary: var(--color-gray-600);
+    --color-fg-white: var(--color-gray-50);
+    --color-fg-disabled: var(--color-gray-500);
+    --color-fg-placeholder: var(--color-gray-400);
+    --color-fg-brand-primary: var(--color-brand-400);
+    --color-fg-brand-secondary: var(--color-brand-300);
+    --color-fg-error-primary: var(--color-error-400);
+    --color-fg-error-secondary: var(--color-error-300);
+    --color-fg-warning-primary: var(--color-warning-400);
+    --color-fg-warning-secondary: var(--color-warning-300);
+    --color-fg-success-primary: var(--color-success-400);
+    --color-fg-success-secondary: var(--color-success-300);
+
+    /* SEMANTIC BACKGROUND COLORS - DARK */
+    --color-bg-primary: var(--color-gray-950);
+    --color-bg-primary_alt: var(--color-gray-900);
+    --color-bg-secondary: var(--color-gray-900);
+    --color-bg-secondary_alt: var(--color-gray-950);
+    --color-bg-tertiary: var(--color-gray-800);
+    --color-bg-quaternary: var(--color-gray-700);
+    --color-bg-active: var(--color-gray-800);
+    --color-bg-disabled: var(--color-gray-800);
+    --color-bg-overlay: rgb(10 13 18 / 0.9);
+    --color-bg-brand-primary: rgb(40 94 49 / 0.15);
+    --color-bg-brand-secondary: rgb(40 94 49 / 0.25);
+    --color-bg-brand-solid: var(--color-brand-500);
+    --color-bg-brand-solid_hover: var(--color-brand-400);
+    --color-bg-error-primary: rgb(240 68 56 / 0.15);
+    --color-bg-error-secondary: rgb(240 68 56 / 0.25);
+    --color-bg-error-solid: var(--color-error-500);
+    --color-bg-warning-primary: rgb(247 144 9 / 0.15);
+    --color-bg-warning-secondary: rgb(247 144 9 / 0.25);
+    --color-bg-warning-solid: var(--color-warning-500);
+    --color-bg-success-primary: rgb(23 178 106 / 0.15);
+    --color-bg-success-secondary: rgb(23 178 106 / 0.25);
+    --color-bg-success-solid: var(--color-success-500);
+
+    /* SEMANTIC BORDER COLORS - DARK */
+    --color-border-primary: var(--color-gray-700);
+    --color-border-secondary: var(--color-gray-800);
+    --color-border-tertiary: var(--color-gray-800);
+    --color-border-disabled: var(--color-gray-700);
+    --color-border-brand: var(--color-brand-700);
+    --color-border-brand-solid: var(--color-brand-500);
+    --color-border-error: var(--color-error-700);
+    --color-border-error-solid: var(--color-error-500);
+}

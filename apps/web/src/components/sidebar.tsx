@@ -37,7 +37,9 @@ import {
   ChevronRight,
   Shield,
   LogOut,
-  ChevronsUpDown
+  ChevronsUpDown,
+  BarChart3,
+  Bell
 } from "lucide-react"
 
 type UserRole = "medico" | "atendente" | "diretor" | "admin" | "super_admin"
@@ -53,6 +55,11 @@ export function Sidebar({ className }: SidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
   
   const { data, isLoading } = useQuery(trpc.me.queryOptions())
+  
+  // @ts-ignore - Backend is ready but types might not be generated yet
+  const { data: unreadCount } = useQuery(trpc.notificacoes.contarNaoLidas.queryOptions(undefined, {
+    refetchInterval: 30000
+  }))
 
   const userRole = data?.user?.tipo as UserRole | undefined
   const userName = data?.user?.name || "Usuário"
@@ -84,6 +91,7 @@ export function Sidebar({ className }: SidebarProps) {
         { title: "Meus Horários", icon: Calendar, href: "/dashboard/horarios" },
         { title: "Solicitar Abertura", icon: PlusCircle, href: "/dashboard/solicitar" },
         { title: "Fechar Horários", icon: MinusCircle, href: "/dashboard/fechar" },
+        { title: "Cancelar Emergencial", icon: Siren, href: "/dashboard/cancelamento-emergencial" },
         { title: "Minhas Solicitações", icon: FileText, href: "/dashboard/solicitacoes" }
       )
     }
@@ -92,6 +100,7 @@ export function Sidebar({ className }: SidebarProps) {
     if (isStaff) {
       items.push(
         { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+        { title: "Analytics", icon: BarChart3, href: "/dashboard/analytics" },
         { title: "Solicitações Pendentes", icon: AlertCircle, href: "/dashboard/pendentes" },
         { title: "Cancelamentos", icon: Siren, href: "/dashboard/cancelamentos" },
         { title: "Médicos", icon: Stethoscope, href: "/dashboard/medicos" }
@@ -182,7 +191,22 @@ export function Sidebar({ className }: SidebarProps) {
                   size="md" 
                   className="text-brand-600 dark:text-brand-400" 
                 />
-                <ModeToggle />
+                <div className="flex items-center gap-1">
+                  <Link
+                    href="/dashboard/notificacoes"
+                    onClick={() => setIsMobileOpen(false)}
+                    className="relative p-2 rounded-lg hover:bg-accent transition-colors"
+                    title="Notificações"
+                  >
+                    <Bell className="h-5 w-5 text-muted-foreground" />
+                    {(unreadCount ?? 0) > 0 && (
+                      <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-600 text-white text-[10px] font-medium flex items-center justify-center">
+                        {(unreadCount ?? 0) > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </Link>
+                  <ModeToggle />
+                </div>
               </div>
               <ScrollArea className="flex-1 py-4">
                 <nav className="grid gap-1 px-2">
@@ -272,7 +296,25 @@ export function Sidebar({ className }: SidebarProps) {
           </ScrollArea>
 
           <div className="mt-auto border-t p-3 space-y-3">
-            <div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-end")}>
+            <div className={cn("flex items-center gap-1", isCollapsed ? "justify-center" : "justify-end")}>
+              <Link
+                href="/dashboard/notificacoes"
+                className={cn(
+                  "relative p-2 rounded-lg hover:bg-accent transition-colors",
+                  pathname === "/dashboard/notificacoes" && "bg-accent"
+                )}
+                title="Notificações"
+              >
+                <Bell className={cn(
+                  "h-5 w-5",
+                  pathname === "/dashboard/notificacoes" ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground"
+                )} />
+                {(unreadCount ?? 0) > 0 && (
+                  <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-red-600 text-white text-[10px] font-medium flex items-center justify-center">
+                    {(unreadCount ?? 0) > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Link>
               <ModeToggle />
             </div>
             <UserSection collapsed={isCollapsed} onSignOut={handleSignOut} />

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import prisma from "@clickmedicos/db";
 import { publicProcedure, router } from "../trpc";
+import { enviarEmailNovoCandidato } from "../services/email.service";
 
 const submitCandidaturaInput = z.object({
   nome: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -107,34 +108,52 @@ export const onboardingRouter = router({
         },
       });
 
-      await prisma.auditoria.create({
-        data: {
-          entidade: "candidato",
-          entidadeId: candidato.id,
-          acao: "CANDIDATO_CRIADO",
-          usuarioId: null,
-          usuarioNome: null,
-          dadosDepois: {
-            id: candidato.id,
-            nome: candidato.nome,
-            email: candidato.email,
-            crmNumero: candidato.crmNumero,
-            crmEstado: candidato.crmEstado,
-            especialidades: candidato.especialidades,
-            estagio: candidato.estagio,
-            status: candidato.status,
-            createdAt: candidato.createdAt.toISOString(),
-          },
-          ip: null,
-          userAgent: null,
-        },
-      });
+       await prisma.auditoria.create({
+         data: {
+           entidade: "candidato",
+           entidadeId: candidato.id,
+           acao: "CANDIDATO_CRIADO",
+           usuarioId: null,
+           usuarioNome: null,
+           dadosDepois: {
+             id: candidato.id,
+             nome: candidato.nome,
+             email: candidato.email,
+             crmNumero: candidato.crmNumero,
+             crmEstado: candidato.crmEstado,
+             especialidades: candidato.especialidades,
+             estagio: candidato.estagio,
+             status: candidato.status,
+             createdAt: candidato.createdAt.toISOString(),
+           },
+           ip: null,
+           userAgent: null,
+         },
+       });
 
-      return {
-        id: candidato.id,
-        nome: candidato.nome,
-        email: candidato.email,
-        message: "Candidatura enviada com sucesso! Entraremos em contato em breve.",
-      };
+       // Notificar staff sobre novo candidato
+       const configEmails = await prisma.configSistema.findUnique({
+         where: { chave: "emails_onboarding_staff" },
+       });
+
+       if (configEmails && Array.isArray(configEmails.valor)) {
+         enviarEmailNovoCandidato(
+           configEmails.valor as string[],
+           candidato.nome,
+           candidato.email,
+           candidato.crmNumero,
+           candidato.crmEstado,
+           candidato.especialidades
+         ).catch((err) => {
+           console.error("[Email] Falhou ao notificar staff:", err);
+         });
+       }
+
+       return {
+         id: candidato.id,
+         nome: candidato.nome,
+         email: candidato.email,
+         message: "Candidatura enviada com sucesso! Entraremos em contato em breve.",
+       };
     }),
 });

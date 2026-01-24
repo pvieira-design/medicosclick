@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { 
@@ -85,6 +86,8 @@ for (let h = 7; h < 22; h++) {
 
 export default function PendentesPage() {
   const [page, setPage] = useState(1);
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get("id");
   const perPage = 10;
   
   const { data, isLoading, isError } = useQuery(
@@ -146,7 +149,11 @@ export default function PendentesPage() {
                 </TableHeader>
                 <TableBody>
                   {(data as any)?.solicitacoes?.map((solicitacao: any) => (
-                    <SolicitacaoRow key={solicitacao.id} solicitacao={solicitacao} />
+                    <SolicitacaoRow 
+                      key={solicitacao.id} 
+                      solicitacao={solicitacao} 
+                      isHighlighted={solicitacao.id === highlightId}
+                    />
                   ))}
                 </TableBody>
               </Table>
@@ -193,11 +200,23 @@ function toSlotType(slot: { diaSemana: string; horario: string }): SlotType {
   return { diaSemana: slot.diaSemana as DiaSemana, horario: slot.horario };
 }
 
-function SolicitacaoRow({ solicitacao }: { solicitacao: any }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+function SolicitacaoRow({ solicitacao, isHighlighted = false }: { solicitacao: any; isHighlighted?: boolean }) {
+  const [isExpanded, setIsExpanded] = useState(isHighlighted);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const rowRef = useRef<HTMLTableRowElement>(null);
+
+  // Auto-expand and scroll into view when highlighted
+  useEffect(() => {
+    if (isHighlighted && rowRef.current) {
+      setIsExpanded(true);
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [isHighlighted]);
   
   const allSlots: SlotType[] = Array.isArray(solicitacao.slots) ? solicitacao.slots : [];
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(() => 
@@ -277,7 +296,12 @@ function SolicitacaoRow({ solicitacao }: { solicitacao: any }) {
   return (
     <>
       <TableRow 
-        className={cn("transition-colors hover:bg-muted/30 cursor-pointer", isExpanded && "bg-muted/30")}
+        ref={rowRef}
+        className={cn(
+          "transition-colors hover:bg-muted/30 cursor-pointer", 
+          isExpanded && "bg-muted/30",
+          isHighlighted && "ring-2 ring-primary ring-inset bg-primary/5"
+        )}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <TableCell>

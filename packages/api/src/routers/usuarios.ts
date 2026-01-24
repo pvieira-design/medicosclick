@@ -18,6 +18,8 @@ export const usuariosRouter = router({
         search: z.string().optional(),
         page: z.number().min(1).default(1),
         perPage: z.number().min(1).max(100).default(20),
+        orderBy: z.enum(["name", "faixa", "score", "strikes", "ativo"]).default("name"),
+        orderDir: z.enum(["asc", "desc"]).default("asc"),
       })
     )
     .query(async ({ input }) => {
@@ -39,7 +41,7 @@ export const usuariosRouter = router({
           where,
           skip: (input.page - 1) * input.perPage,
           take: input.perPage,
-          orderBy: { name: "asc" },
+          orderBy: { [input.orderBy]: input.orderDir },
           select: {
             id: true,
             name: true,
@@ -658,6 +660,152 @@ export const usuariosRouter = router({
 
       await prisma.medicoObservacao.delete({
         where: { id: input.observacaoId },
+      });
+
+      return { success: true };
+    }),
+
+  getPrioridadesClick: staffProcedure.query(async () => {
+    const prioridades = await clickQueries.getPrioridadesMedicos();
+    return prioridades.reduce(
+      (acc, item) => {
+        acc[item.doctor_id] = item.priority;
+        return acc;
+      },
+      {} as Record<number, number>
+    );
+  }),
+
+  sincronizarPrioridadesClick: staffProcedure.mutation(async ({ ctx }) => {
+    const medicos = await prisma.user.findMany({
+      where: { 
+        tipo: "medico",
+        clickDoctorId: { not: null },
+        faixa: { in: ["P1", "P2", "P3", "P4", "P5"] },
+      },
+      select: {
+        id: true,
+        clickDoctorId: true,
+        faixa: true,
+      },
+    });
+
+    const faixaParaPrioridade: Record<string, number> = {
+      P1: 1,
+      P2: 2,
+      P3: 3,
+      P4: 4,
+      P5: 5,
+    };
+
+    const payload = medicos
+      .filter((m) => m.clickDoctorId && m.faixa)
+      .map((m) => ({
+        id: m.clickDoctorId!,
+        prioridade: faixaParaPrioridade[m.faixa!] || 5,
+      }));
+
+    if (payload.length === 0) {
+      return { success: false, message: "Nenhum medico com faixa para sincronizar" };
+    }
+
+    const response = await fetch(
+      "https://clickcannabis.app.n8n.cloud/webhook/atualizar-prioridade-medico",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.ok) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: `Erro ao sincronizar prioridades: ${response.status}`,
+      });
+    }
+
+    await prisma.auditoria.create({
+      data: {
+        usuarioId: ctx.user.id,
+        usuarioNome: ctx.user.name,
+        acao: "SINCRONIZAR_PRIORIDADES_CLICK",
+        entidade: "user",
+        entidadeId: "todos",
+        dadosDepois: { quantidade: payload.length },
+      },
+    });
+
+    return { success: true, sincronizados: payload.length };
+  }),
+
+  sincronizarPrioridadeMedicoClick: staffProcedure
+    .input(z.object({ medicoId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const medico = await prisma.user.findUnique({
+        where: { id: input.medicoId },
+        select: {
+          id: true,
+          name: true,
+          clickDoctorId: true,
+          faixa: true,
+        },
+      });
+
+      if (!medico) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Medico nao encontrado" });
+      }
+
+      if (!medico.clickDoctorId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Medico sem ID Click vinculado" });
+      }
+
+      if (!medico.faixa) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Medico sem faixa definida" });
+      }
+
+      const faixaParaPrioridade: Record<string, number> = {
+        P1: 1,
+        P2: 2,
+        P3: 3,
+        P4: 4,
+        P5: 5,
+      };
+
+      const payload = [{
+        id: medico.clickDoctorId,
+        prioridade: faixaParaPrioridade[medico.faixa] || 5,
+      }];
+
+      const response = await fetch(
+        "https://clickcannabis.app.n8n.cloud/webhook/atualizar-prioridade-medico",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Erro ao sincronizar prioridade: ${response.status}`,
+        });
+      }
+
+      await prisma.auditoria.create({
+        data: {
+          usuarioId: ctx.user.id,
+          usuarioNome: ctx.user.name,
+          acao: "SINCRONIZAR_PRIORIDADE_MEDICO_CLICK",
+          entidade: "user",
+          entidadeId: input.medicoId,
+          dadosDepois: { 
+            medicoNome: medico.name,
+            faixa: medico.faixa,
+            clickDoctorId: medico.clickDoctorId,
+          },
+        },
       });
 
       return { success: true };
