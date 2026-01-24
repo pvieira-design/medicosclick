@@ -6,7 +6,6 @@ import { trpc, trpcClient, queryClient } from "@/utils/trpc";
 import { toast } from "sonner";
 import { 
   Search, 
-  Filter, 
   MoreHorizontal, 
   Eye, 
   Stethoscope, 
@@ -33,7 +32,10 @@ import {
   Upload,
   ImagePlus,
   FileText,
-  CreditCard
+  CreditCard,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -88,6 +90,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 
 type FaixaType = "P1" | "P2" | "P3" | "P4" | "P5";
@@ -118,6 +121,47 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+type OrderByField = "name" | "faixa" | "score" | "strikes" | "ativo";
+type OrderDir = "asc" | "desc";
+
+function SortableHeader({ 
+  children, 
+  field, 
+  currentField, 
+  currentDir, 
+  onSort,
+  className = ""
+}: { 
+  children: React.ReactNode; 
+  field: OrderByField; 
+  currentField: OrderByField; 
+  currentDir: OrderDir; 
+  onSort: (field: OrderByField) => void;
+  className?: string;
+}) {
+  const isActive = currentField === field;
+  
+  return (
+    <TableHead 
+      className={`py-4 font-medium text-slate-500 cursor-pointer hover:text-slate-700 hover:bg-slate-100/50 transition-colors select-none ${className}`}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1.5">
+        {children}
+        {isActive ? (
+          currentDir === "asc" ? (
+            <ArrowUp className="h-3.5 w-3.5 text-slate-700" />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5 text-slate-700" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
+        )}
+      </div>
+    </TableHead>
+  );
+}
+
 export default function DoctorsPage() {
   const [page, setPage] = useState(1);
   const [faixaFilter, setFaixaFilter] = useState<string>("all");
@@ -125,6 +169,18 @@ export default function DoctorsPage() {
   const [search, setSearch] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [orderBy, setOrderBy] = useState<OrderByField>("name");
+  const [orderDir, setOrderDir] = useState<OrderDir>("asc");
+
+  const handleSort = (field: OrderByField) => {
+    if (orderBy === field) {
+      setOrderDir(orderDir === "asc" ? "desc" : "asc");
+    } else {
+      setOrderBy(field);
+      setOrderDir("asc");
+    }
+    setPage(1);
+  };
 
 
 
@@ -145,9 +201,13 @@ export default function DoctorsPage() {
     faixa: faixaFilter !== "all" ? (faixaFilter as FaixaType) : undefined,
     ativo: statusFilter !== "all" ? statusFilter === "ativo" : undefined,
     search: search.trim() || undefined,
+    orderBy,
+    orderDir,
   }));
 
   const { data: stats } = useQuery(trpc.usuarios.estatisticas.queryOptions());
+
+  const { data: prioridadesClick } = useQuery(trpc.usuarios.getPrioridadesClick.queryOptions());
 
   const toggleStatusMutation = useMutation({
     mutationFn: (input: { userId: string; ativo: boolean }) => 
@@ -177,6 +237,36 @@ export default function DoctorsPage() {
     },
     onError: (error: { message: string }) => {
       toast.error(`Erro ao recalcular: ${error.message}`);
+    },
+  });
+
+  const sincronizarPrioridadesMutation = useMutation({
+    mutationFn: () => trpcClient.usuarios.sincronizarPrioridadesClick.mutate(),
+    onSuccess: (result) => {
+      if ('sincronizados' in result) {
+        toast.success(`Prioridades atualizadas! ${result.sincronizados} médicos sincronizados. Atualizando listagem...`);
+        setTimeout(() => {
+          queryClient.invalidateQueries();
+        }, 3000);
+      } else {
+        toast.info(result.message);
+      }
+    },
+    onError: (error: { message: string }) => {
+      toast.error(`Erro ao sincronizar: ${error.message}`);
+    },
+  });
+
+  const sincronizarPrioridadeMedicoMutation = useMutation({
+    mutationFn: (medicoId: string) => trpcClient.usuarios.sincronizarPrioridadeMedicoClick.mutate({ medicoId }),
+    onSuccess: () => {
+      toast.success("Prioridade atualizada no Click! Atualizando listagem...");
+      setTimeout(() => {
+        queryClient.invalidateQueries();
+      }, 3000);
+    },
+    onError: (error: { message: string }) => {
+      toast.error(`Erro ao sincronizar: ${error.message}`);
     },
   });
 
@@ -216,6 +306,16 @@ export default function DoctorsPage() {
           >
             <Calculator className={`h-4 w-4 mr-2 ${recalcularScoreMutation.isPending ? "animate-spin" : ""}`} />
             Recalcular
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={() => sincronizarPrioridadesMutation.mutate()}
+            disabled={sincronizarPrioridadesMutation.isPending}
+            className="border-slate-200 hover:bg-slate-50 text-slate-600"
+          >
+            <Send className={`h-4 w-4 mr-2 ${sincronizarPrioridadesMutation.isPending ? "animate-spin" : ""}`} />
+            Atualizar Prioridades
           </Button>
         </div>
       </div>
@@ -263,9 +363,6 @@ export default function DoctorsPage() {
                 }}
               />
             </div>
-            <Button variant="outline" size="icon" className="shrink-0 h-11 w-11 border-slate-200 text-slate-500">
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
@@ -320,11 +417,30 @@ export default function DoctorsPage() {
           <Table>
             <TableHeader className="bg-slate-50/50 dark:bg-slate-900/50">
               <TableRow className="border-slate-100 hover:bg-transparent">
-                <TableHead className="w-[350px] py-4 pl-6 text-slate-500 font-medium">Médico</TableHead>
-                <TableHead className="py-4 font-medium text-slate-500">Faixa</TableHead>
-                <TableHead className="py-4 font-medium text-slate-500">Score</TableHead>
-                <TableHead className="py-4 font-medium text-slate-500">Strikes</TableHead>
-                <TableHead className="py-4 font-medium text-slate-500">Status</TableHead>
+                <SortableHeader 
+                  field="name" 
+                  currentField={orderBy} 
+                  currentDir={orderDir} 
+                  onSort={handleSort}
+                  className="w-[350px] pl-6"
+                >
+                  Médico
+                </SortableHeader>
+                <SortableHeader field="faixa" currentField={orderBy} currentDir={orderDir} onSort={handleSort}>
+                  Faixa
+                </SortableHeader>
+                <TableHead className="py-4 font-medium text-slate-500">
+                  Prioridade Click
+                </TableHead>
+                <SortableHeader field="score" currentField={orderBy} currentDir={orderDir} onSort={handleSort}>
+                  Score
+                </SortableHeader>
+                <SortableHeader field="strikes" currentField={orderBy} currentDir={orderDir} onSort={handleSort}>
+                  Strikes
+                </SortableHeader>
+                <SortableHeader field="ativo" currentField={orderBy} currentDir={orderDir} onSort={handleSort}>
+                  Status
+                </SortableHeader>
                 <TableHead className="text-right py-4 pr-6 font-medium text-slate-500">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -334,6 +450,7 @@ export default function DoctorsPage() {
                   <TableRow key={i} className="border-slate-50">
                     <TableCell className="pl-6"><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-24" /></div></div></TableCell>
                     <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-10" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-12" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-8" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-16" /></TableCell>
@@ -342,7 +459,7 @@ export default function DoctorsPage() {
                 ))
               ) : data?.usuarios.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Search className="h-8 w-8 text-slate-300" />
                       <p>Nenhum médico encontrado com os filtros atuais.</p>
@@ -359,7 +476,7 @@ export default function DoctorsPage() {
                     <TableCell className="pl-6 py-4">
                       <div className="flex items-center gap-4">
                         <Avatar className="h-11 w-11 border border-slate-100 dark:border-slate-800 bg-white">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${doctor.name}`} />
+                          <AvatarImage src={doctor.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doctor.name}`} />
                           <AvatarFallback className="bg-emerald-50 text-emerald-700 font-bold text-sm">
                             {getInitials(doctor.name)}
                           </AvatarFallback>
@@ -389,6 +506,27 @@ export default function DoctorsPage() {
                       ) : (
                         <span className="text-slate-400 text-sm">-</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const prioridadeClick = doctor.clickDoctorId ? prioridadesClick?.[doctor.clickDoctorId] : null;
+                        if (prioridadeClick === null || prioridadeClick === undefined) {
+                          return <span className="text-slate-400 text-sm">-</span>;
+                        }
+                        const prioridadeLabel = `P${prioridadeClick}`;
+                        const isSynced = doctor.faixa === prioridadeLabel;
+                        return (
+                          <Badge 
+                            variant="outline" 
+                            className={isSynced 
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700" 
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                            }
+                          >
+                            P{prioridadeClick}
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-baseline gap-1">
@@ -435,6 +573,14 @@ export default function DoctorsPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => toggleStatusMutation.mutate({ userId: doctor.id, ativo: !doctor.ativo })}>
                                 {doctor.ativo ? "Desativar Médico" : "Ativar Médico"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => sincronizarPrioridadeMedicoMutation.mutate(doctor.id)}
+                                disabled={sincronizarPrioridadeMedicoMutation.isPending}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Sincronizar Prioridade
                               </DropdownMenuItem>
                             </DropdownMenuGroup>
                           </DropdownMenuContent>
@@ -1256,6 +1402,130 @@ function CompactDoctorHeader({ doctor, isUploading, handleUploadClick, fileInput
     )
 }
 
+function HistoricoTab({ medicoId }: { medicoId: string }) {
+  const { data: historico, isLoading } = useQuery({
+    ...trpc.medico.getHistoricoScore.queryOptions({ medicoId }),
+    enabled: !!medicoId
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-64 w-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!historico?.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <Activity className="h-12 w-12 text-slate-200 mb-3" />
+        <p className="text-base text-slate-900 font-medium">Nenhum histórico de score</p>
+        <p className="text-sm text-slate-500">Este médico ainda não possui registros de score.</p>
+      </div>
+    );
+  }
+
+  // Reverse for chart (oldest first)
+  const chartData = [...historico].reverse().map(h => ({
+    data: new Date(h.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+    score: Number(h.score),
+  }));
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <Card className="border border-slate-200 shadow-none">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-slate-700">Evolução do Score</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis 
+                  dataKey="data" 
+                  stroke="#64748b" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  dy={10}
+                />
+                <YAxis 
+                  domain={[0, 100]} 
+                  stroke="#64748b" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  dx={-10}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
+                  }}
+                  itemStyle={{ color: '#0f172a', fontSize: '12px', fontWeight: 500 }}
+                  labelStyle={{ color: '#64748b', fontSize: '11px', marginBottom: '4px' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="score" 
+                  stroke="#059669" 
+                  strokeWidth={2} 
+                  dot={{ r: 4, fill: '#059669', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6, fill: '#059669', strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="rounded-xl border border-slate-200 overflow-hidden">
+        <Table>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow className="border-slate-100 hover:bg-transparent">
+              <TableHead className="font-medium text-slate-500">Data</TableHead>
+              <TableHead className="font-medium text-slate-500">Score</TableHead>
+              <TableHead className="font-medium text-slate-500">Faixa</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {historico.map(h => (
+              <TableRow key={h.id} className="border-slate-50 hover:bg-slate-50/50">
+                <TableCell className="text-slate-600">
+                  {new Date(h.createdAt).toLocaleString('pt-BR', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </TableCell>
+                <TableCell className="font-medium text-slate-900">
+                  {Number(h.score).toFixed(1)}
+                </TableCell>
+                <TableCell>
+                  <Badge className={`${getFaixaColor(h.faixa)} border-0 font-medium px-2 py-0.5`}>
+                    {h.faixa}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; onOpenChange: (open: boolean) => void; doctorId: string | null }) {
   const { data: doctor, isLoading } = useQuery({
     ...trpc.usuarios.getMedico.queryOptions({ id: doctorId! }),
@@ -1287,13 +1557,13 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
     try {
       setIsUploading(true);
       
-      const filename = `${doctorId}-${Date.now()}.${file.name.split('.').pop()}`;
-      const formData = new FormData();
-      formData.append('file', file);
+      const ext = file.name.split('.').pop();
+      const filename = `doctors/${doctorId}-${Date.now()}.${ext}`;
       
+      // Envia o arquivo diretamente como stream (não FormData)
       const response = await fetch(`/api/upload?filename=${filename}`, {
         method: 'POST',
-        body: formData,
+        body: file,
       });
 
       if (!response.ok) throw new Error('Falha no upload');
@@ -1350,14 +1620,19 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
             <MetricasPerformance doctorId={doctor.id} />
 
             <Tabs defaultValue="schedule" className="w-full">
-              <TabsList className="w-full grid grid-cols-3 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
+              <TabsList className="w-full grid grid-cols-4 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
                 <TabsTrigger value="schedule">Agenda</TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
                 <TabsTrigger value="observacoes">Observações</TabsTrigger>
                 <TabsTrigger value="settings">Configurações</TabsTrigger>
               </TabsList>
               
               <TabsContent value="schedule">
                 <DoctorScheduleGrid doctorId={doctor.id} />
+              </TabsContent>
+
+              <TabsContent value="historico">
+                <HistoricoTab medicoId={doctor.id} />
               </TabsContent>
 
               <TabsContent value="observacoes">
