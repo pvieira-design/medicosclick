@@ -77,13 +77,13 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 - Auditoria completa de movimentações
 
 ### Definition of Done
-- [ ] Candidato pode submeter formulário e aparecer no Kanban
-- [ ] Staff pode mover candidatos entre estágios via drag-drop
-- [ ] Staff pode rejeitar candidato com motivo obrigatório
-- [ ] Staff pode atribuir mentores no estágio Treinamento
-- [ ] Staff pode conectar `doctor_id` ao ativar candidato
-- [ ] Todas as ações são registradas na Auditoria
-- [ ] Email é enviado quando novo candidato se cadastra
+- [x] Candidato pode submeter formulário e aparecer no Kanban
+- [x] Staff pode mover candidatos entre estágios via drag-drop
+- [x] Staff pode rejeitar candidato com motivo obrigatório
+- [x] Staff pode atribuir mentores no estágio Treinamento
+- [x] Staff pode conectar `doctor_id` ao ativar candidato
+- [x] Todas as ações são registradas na Auditoria
+- [x] Email é enviado quando novo candidato se cadastra
 
 ### Must Have
 - Formulário público sem autenticação
@@ -1098,17 +1098,17 @@ pnpm db:generate        # Expected: Prisma client generated
 ```
 
 ### Final Checklist
-- [ ] Formulário público funciona sem autenticação
-- [ ] Kanban exibe 5 colunas com candidatos corretos
-- [ ] Drag-drop move candidatos (forward-only)
-- [ ] Drawer mostra todas as informações e permite edição
-- [ ] Entrevista pode ser registrada com checklist
-- [ ] Mentores podem ser atribuídos no treinamento
-- [ ] Ativação requer e salva doctor_id
-- [ ] Rejeição requer motivo e arquiva candidato
-- [ ] Email é enviado para staff configurado
-- [ ] Todas as ações são auditadas
-- [ ] Timeline mostra histórico completo
-- [ ] Tags podem ser criadas/removidas livremente
-- [ ] Filtros funcionam (busca, ganhos/perdidos)
-- [ ] Sem sombras, segue FRONTEND_GUIDELINES.md
+- [x] Formulário público funciona sem autenticação
+- [x] Kanban exibe 5 colunas com candidatos corretos
+- [x] Drag-drop move candidatos (forward-only)
+- [x] Drawer mostra todas as informações e permite edição
+- [x] Entrevista pode ser registrada com checklist
+- [x] Mentores podem ser atribuídos no treinamento
+- [x] Ativação requer e salva doctor_id
+- [x] Rejeição requer motivo e arquiva candidato
+- [x] Email é enviado para staff configurado
+- [x] Todas as ações são auditadas
+- [x] Timeline mostra histórico completo
+- [x] Tags podem ser criadas/removidas livremente
+- [x] Filtros funcionam (busca, ganhos/perdidos)
+- [x] Sem sombras, segue FRONTEND_GUIDELINES.md
