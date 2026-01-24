@@ -1004,7 +1004,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 14. Teste de Integração End-to-End
+- [x] 14. Teste de Integração End-to-End
 
   **What to do**:
   - Testar fluxo completo: Formulário → Kanban → Entrevista → Treinamento → Ativação → Performance
