@@ -864,6 +864,87 @@ export const onboardingRouter = router({
         },
       });
 
-      return candidatoAtualizado;
-    }),
+       return candidatoAtualizado;
+     }),
+
+   salvarEntrevista: staffProcedure
+     .input(
+       z.object({
+         candidatoId: z.string(),
+         nota: z.number().min(1).max(5, "Nota deve estar entre 1 e 5"),
+         observacoes: z.string().min(10, "Observações devem ter no mínimo 10 caracteres"),
+          checklist: z.record(z.string(), z.boolean()),
+         entrevistadorId: z.string(),
+         resultado: z.enum(["aprovado", "reprovado", "pendente"]),
+       })
+     )
+     .mutation(async ({ ctx, input }) => {
+       const candidato = await prisma.candidato.findUnique({
+         where: { id: input.candidatoId },
+         select: { id: true, nome: true, entrevistaRealizada: true },
+       });
+
+       if (!candidato) {
+         throw new TRPCError({
+           code: "NOT_FOUND",
+           message: "Candidato não encontrado",
+         });
+       }
+
+       const candidatoAtualizado = await prisma.candidato.update({
+         where: { id: input.candidatoId },
+         data: {
+           entrevistaRealizada: true,
+           entrevistaNota: input.nota,
+           entrevistaObservacoes: input.observacoes,
+            entrevistaChecklist: input.checklist as any,
+           entrevistadorId: input.entrevistadorId,
+           entrevistaResultado: input.resultado,
+         },
+         select: {
+           id: true,
+           nome: true,
+           entrevistaRealizada: true,
+           entrevistaNota: true,
+           entrevistaResultado: true,
+         },
+       });
+
+       // Registrar no histórico
+       await prisma.candidatoHistorico.create({
+         data: {
+           candidatoId: input.candidatoId,
+           acao: "ENTREVISTA_REALIZADA",
+           detalhes: {
+             nota: input.nota,
+             resultado: input.resultado,
+             checklistItems: Object.keys(input.checklist).filter(
+               (key) => input.checklist[key]
+             ),
+           },
+           usuarioId: ctx.user.id,
+         },
+       });
+
+       // Registrar na auditoria
+       await prisma.auditoria.create({
+         data: {
+           entidade: "candidato",
+           entidadeId: input.candidatoId,
+           acao: "ENTREVISTA_REALIZADA",
+           usuarioId: ctx.user.id,
+           usuarioNome: ctx.user.name,
+           dadosDepois: {
+             entrevistaRealizada: true,
+             entrevistaNota: input.nota,
+             entrevistaResultado: input.resultado,
+             entrevistador: input.entrevistadorId,
+           },
+           ip: null,
+           userAgent: null,
+         },
+       });
+
+       return candidatoAtualizado;
+     }),
 });

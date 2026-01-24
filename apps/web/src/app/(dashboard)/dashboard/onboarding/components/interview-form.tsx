@@ -38,8 +38,8 @@ export function InterviewForm({ candidatoId }: { candidatoId: string }) {
   const { data: users } = useQuery({
     queryKey: ["users-staff"],
     queryFn: async () => {
-      const res = await trpcClient.user.listarStaff.query();
-      return res;
+      // TODO: Implement listarStaff procedure
+      return [];
     },
   });
 

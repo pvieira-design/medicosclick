@@ -99,3 +99,50 @@ salvarEntrevista: staffProcedure
 - Entrevistador is required (must select from staff list)
 - Checklist items are flexible (can check any combination)
 - Result can be changed independently of other fields
+
+## Tag System Implementation (2026-01-24)
+
+### Backend (tRPC Procedures)
+- **adicionarTag**: staffProcedure that creates a CandidatoTag with validation
+  - Checks for duplicate tags (unique constraint on candidatoId + nome)
+  - Creates CandidatoHistorico entry with acao="TAG_ADICIONADA"
+  - Logs to Auditoria table
+  - Returns tag with creator info and createdAt
+
+- **removerTag**: staffProcedure that deletes a tag
+  - Validates tag belongs to the candidate
+  - Creates CandidatoHistorico entry with acao="TAG_REMOVIDA"
+  - Logs to Auditoria table
+
+- **listarCandidatos**: Updated to include tags in select clause
+  - Returns tags with id and nome fields for card display
+
+### Frontend (React Components)
+- **TagsSection**: New component for tag management in drawer
+  - Uses useMutation for add/remove operations
+  - Invalidates getCandidato query on success
+  - Shows loading state with Loader2 icon
+  - Displays tags as pills with remove button (X icon)
+  - Empty state message when no tags
+
+- **CandidatoCard**: Updated to display tags
+  - Shows first 2 tags with brand colors (bg-brand-100, text-brand-700)
+  - Shows "+N" badge for additional tags
+  - Tags appear below especialidades
+
+- **Interfaces Updated**:
+  - Candidato: Added optional tags array
+  - CandidatoDetail: Added tags array with criadoPor info
+
+### Key Patterns
+- Free-form string tags (no predefined list)
+- Audit logging for all tag operations
+- Optimistic UI updates via React Query invalidation
+- Consistent error handling with TRPCError
+- Tags are case-sensitive (no normalization)
+
+### Styling
+- Tags use brand color scheme (brand-50, brand-100, brand-200, brand-700)
+- Rounded pills with px-3 py-1 padding
+- Hover state on remove button (text-brand-900)
+- Compact display on cards (max 2 tags + count)

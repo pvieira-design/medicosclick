@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Clock, Calendar, FileText, MessageSquare, GraduationCap, CheckCircle, History, User, Mail, Phone, MapPin, FileIcon, AlertCircle, Loader2 } from "lucide-react";
+import { Search, Clock, Calendar, FileText, MessageSquare, GraduationCap, CheckCircle, History, User, Mail, Phone, MapPin, FileIcon, AlertCircle, Loader2, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -23,8 +23,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { InterviewForm } from "./components/interview-form";
+import { TrainingForm } from "./components/training-form";
+import { ActivationForm } from "./components/activation-form";
 
 const STAGES = [
   { id: "candidato", label: "Candidatos", color: "bg-slate-100 dark:bg-slate-800" },
@@ -168,6 +169,7 @@ interface Candidato {
   createdAt: string | Date;
   status: string;
   especialidades: string[];
+  tags?: { id: string; nome: string }[];
 }
 
 function CandidatoCard({ candidato, onClick }: { candidato: Candidato; onClick: () => void }) {
@@ -211,46 +213,28 @@ function CandidatoCard({ candidato, onClick }: { candidato: Candidato; onClick: 
           </div>
         </div>
 
-         {candidato.especialidades && candidato.especialidades.length > 0 && (
-           <div className="flex flex-wrap gap-1 pt-1">
-             {candidato.especialidades.slice(0, 2).map((esp: string) => (
-               <Badge 
-                 key={esp} 
-                 variant="outline" 
-                 className="text-[10px] px-1.5 h-5 border-slate-200 text-slate-600"
-               >
-                 {esp}
-               </Badge>
-             ))}
-             {candidato.especialidades.length > 2 && (
-               <Badge variant="outline" className="text-[10px] px-1.5 h-5 border-slate-200 text-slate-500">
-                 +{candidato.especialidades.length - 2}
-               </Badge>
-             )}
-           </div>
-         )}
-
-         {candidato.tags && candidato.tags.length > 0 && (
-           <div className="flex flex-wrap gap-1 pt-2">
-             {candidato.tags.slice(0, 2).map((tag) => (
-               <Badge 
-                 key={tag.id} 
-                 className="text-[10px] px-1.5 h-5 bg-brand-100 text-brand-700 hover:bg-brand-100"
-               >
-                 {tag.nome}
-               </Badge>
-             ))}
-             {candidato.tags.length > 2 && (
-               <Badge className="text-[10px] px-1.5 h-5 bg-brand-50 text-brand-600 hover:bg-brand-50">
-                 +{candidato.tags.length - 2}
-               </Badge>
-             )}
-           </div>
-         )}
-       </CardContent>
-     </Card>
-   );
- }
+        {candidato.especialidades && candidato.especialidades.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {candidato.especialidades.slice(0, 2).map((esp: string) => (
+              <Badge 
+                key={esp} 
+                variant="outline" 
+                className="text-[10px] px-1.5 h-5 border-slate-200 text-slate-600"
+              >
+                {esp}
+              </Badge>
+            ))}
+            {candidato.especialidades.length > 2 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 h-5 border-slate-200 text-slate-500">
+                +{candidato.especialidades.length - 2}
+              </Badge>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 interface CandidatoDetail {
   id: string;
@@ -357,6 +341,148 @@ function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
   );
 }
 
+
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-slate-900">Tags</h3>
+      <div className="space-y-3">
+        <form onSubmit={handleAddTag} className="flex gap-2">
+          <Input
+            placeholder="Adicionar nova tag..."
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            disabled={adicionarTagMutation.isPending}
+            className="flex-1"
+          />
+          <Button
+            type="submit"
+            disabled={!tagInput.trim() || adicionarTagMutation.isPending}
+            size="sm"
+          >
+            {adicionarTagMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Adicionar"
+            )}
+          </Button>
+        </form>
+
+        {candidato.tags && candidato.tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {candidato.tags.map((tag) => (
+              <div
+                key={tag.id}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-700"
+              >
+                <span>{tag.nome}</span>
+                <button
+                  onClick={() => removerTagMutation.mutate(tag.id)}
+                  disabled={removerTagMutation.isPending}
+                  className="hover:text-brand-900 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">Nenhuma tag adicionada</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
+  const [tagInput, setTagInput] = useState("");
+  const queryClient = trpc.useUtils();
+
+  const adicionarTagMutation = useMutation({
+    mutationFn: async (nome: string) => {
+      return await trpcClient.onboarding.adicionarTag.mutate({
+        candidatoId: candidato.id,
+        nome,
+      });
+    },
+    onSuccess: () => {
+      setTagInput("");
+      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
+    },
+  });
+
+  const removerTagMutation = useMutation({
+    mutationFn: async (tagId: string) => {
+      return await trpcClient.onboarding.removerTag.mutate({
+        tagId,
+        candidatoId: candidato.id,
+      });
+    },
+    onSuccess: () => {
+      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
+    },
+  });
+
+  const handleAddTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (tagInput.trim()) {
+      adicionarTagMutation.mutate(tagInput.trim());
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-slate-900">Tags</h3>
+      <div className="space-y-3">
+        <form onSubmit={handleAddTag} className="flex gap-2">
+          <Input
+            placeholder="Adicionar nova tag..."
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            disabled={adicionarTagMutation.isPending}
+            className="flex-1"
+          />
+          <Button
+            type="submit"
+            disabled={!tagInput.trim() || adicionarTagMutation.isPending}
+            size="sm"
+          >
+            {adicionarTagMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Adicionar"
+            )}
+          </Button>
+        </form>
+
+        {candidato.tags && candidato.tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {candidato.tags.map((tag) => (
+              <div
+                key={tag.id}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-700"
+              >
+                <span>{tag.nome}</span>
+                <button
+                  onClick={() => removerTagMutation.mutate(tag.id)}
+                  disabled={removerTagMutation.isPending}
+                  className="hover:text-brand-900 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">Nenhuma tag adicionada</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CandidatoDrawer({ 
   open, 
   onOpenChange, 
@@ -366,36 +492,13 @@ function CandidatoDrawer({
   onOpenChange: (open: boolean) => void; 
   candidatoId: string | null 
 }) {
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectMotivo, setRejectMotivo] = useState("");
-  
-  const { data: candidato, isLoading, refetch } = useQuery({
+  const { data: candidato, isLoading } = useQuery({
     queryKey: ["candidato-detail", candidatoId],
     queryFn: async () => {
       const res = await trpcClient.onboarding.getCandidato.query({ id: candidatoId ?? "" });
       return res as unknown as CandidatoDetail;
     },
     enabled: !!candidatoId
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: async () => {
-      if (!candidatoId) throw new Error("Candidato ID não encontrado");
-      return trpcClient.onboarding.rejeitarCandidato.mutate({
-        candidatoId,
-        motivo: rejectMotivo,
-      });
-    },
-    onSuccess: () => {
-      toast.success("Candidato rejeitado com sucesso");
-      setShowRejectModal(false);
-      setRejectMotivo("");
-      refetch();
-      onOpenChange(false);
-    },
-    onError: (error: any) => {
-      toast.error(error.message || "Erro ao rejeitar candidato");
-    },
   });
 
   if (!candidatoId) return null;
@@ -602,37 +705,24 @@ function CandidatoDrawer({
                         </>
                       )}
                     </TabsContent>
+
                     <TabsContent value="entrevista" className="mt-0">
                       <InterviewForm candidatoId={candidato.id} />
                     </TabsContent>
-                    </TabsContent>
 
                     <TabsContent value="treinamento" className="mt-0">
-                      <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
-                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                          <GraduationCap className="h-6 w-6 text-slate-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Checklist de Treinamento</h3>
-                          <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">
-                            O checklist de treinamento e onboarding será implementado em breve.
-                          </p>
-                        </div>
-                      </div>
+                      <TrainingForm candidatoId={candidato.id} />
                     </TabsContent>
 
                     <TabsContent value="ativacao" className="mt-0">
-                      <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
-                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                          <CheckCircle className="h-6 w-6 text-slate-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-slate-900">Ativação de Conta</h3>
-                          <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">
-                            A criação de usuário e configuração de acesso será feita aqui.
-                          </p>
-                        </div>
-                      </div>
+                      {candidato && (
+                        <ActivationForm
+                          candidatoId={candidato.id}
+                          candidatoNome={candidato.nome}
+                          clickDoctorId={candidato.clickDoctorId}
+                          onSuccess={() => {}}
+                        />
+                      )}
                     </TabsContent>
 
                     <TabsContent value="historico" className="mt-0">
@@ -688,7 +778,6 @@ function CandidatoDrawer({
                 variant="destructive" 
                 className="w-full sm:w-auto"
                 disabled={candidato.status === 'rejeitado'}
-                onClick={() => setShowRejectModal(true)}
               >
                 Rejeitar Candidato
               </Button>
@@ -696,98 +785,9 @@ function CandidatoDrawer({
                 Fechar
               </Button>
             </SheetFooter>
-
-            <RejectionModal
-              open={showRejectModal}
-              onOpenChange={setShowRejectModal}
-              motivo={rejectMotivo}
-              onMotivoChange={setRejectMotivo}
-              onConfirm={() => rejectMutation.mutate()}
-              isLoading={rejectMutation.isPending}
-            />
           </>
         )}
       </SheetContent>
     </Sheet>
-  );
-}
-
-interface RejectionModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  motivo: string;
-  onMotivoChange: (motivo: string) => void;
-  onConfirm: () => void;
-  isLoading: boolean;
-}
-
-function RejectionModal({
-  open,
-  onOpenChange,
-  motivo,
-  onMotivoChange,
-  onConfirm,
-  isLoading,
-}: RejectionModalProps) {
-  const isValid = motivo.trim().length >= 10;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            Rejeitar Candidato
-          </DialogTitle>
-          <DialogDescription>
-            Informe o motivo da rejeição. Este motivo será registrado no histórico do candidato.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="motivo" className="text-sm font-medium">
-              Motivo da Rejeição *
-            </Label>
-            <Textarea
-              id="motivo"
-              placeholder="Descreva o motivo da rejeição (mínimo 10 caracteres)..."
-              value={motivo}
-              onChange={(e) => onMotivoChange(e.target.value)}
-              className="min-h-[120px] resize-none"
-              disabled={isLoading}
-            />
-            <div className="text-xs text-slate-500">
-              {motivo.length}/10 caracteres mínimos
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-            <p className="text-sm text-red-700">
-              <strong>Atenção:</strong> Esta ação não pode ser desfeita. O candidato será marcado como rejeitado.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={!isValid || isLoading}
-            className="gap-2"
-          >
-            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Confirmar Rejeição
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
