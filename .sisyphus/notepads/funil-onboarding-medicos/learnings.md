@@ -1,47 +1,101 @@
+# Learnings - Funil de Onboarding Médicos
 
-## Task 5: UI Implementation - Onboarding Kanban (2026-01-24)
+## Interview Form Implementation
 
-### Implementation Summary
-Created `apps/web/src/app/(dashboard)/dashboard/onboarding/page.tsx` with a 5-column Kanban board layout.
+### Architecture
+- **Backend**: tRPC procedure `salvarEntrevista` in `packages/api/src/routers/onboarding.ts`
+- **Frontend**: React component `InterviewForm` in `apps/web/src/app/(dashboard)/dashboard/onboarding/components/interview-form.tsx`
+- **Database**: Uses existing Candidato model fields:
+  - `entrevistaRealizada` (boolean)
+  - `entrevistaNota` (1-5 integer)
+  - `entrevistaObservacoes` (text)
+  - `entrevistaChecklist` (JSON)
+  - `entrevistadorId` (foreign key to User)
+  - `entrevistaResultado` (enum: aprovado/reprovado/pendente)
 
-### Key Features
-1. **5-Column Layout**: Visual representation of the onboarding pipeline (Candidatos, Entrevista, Treinamento, Ativo, Performance).
-2. **Filters**:
-   - **Search**: Debounced input searching by name, email, or CRM.
-   - **Show Rejected**: Toggle to include/exclude rejected candidates.
-3. **Data Fetching**:
-   - Used `useQuery(trpc.onboarding.listarCandidatos.queryOptions(...))` pattern for tRPC v11 compatibility.
-   - Fetches data independently for each column to ensure correct distribution.
-   - `perPage: 50` to load a sufficient number of items for the board view.
-4. **UI Components**:
-   - `KanbanColumn`: Reusable component for each stage.
-   - `CandidatoCard`: Displays candidate info (name, date, relative time, specialties).
-   - Used `Intl` and simple math for date formatting to avoid adding `date-fns` dependency.
-   - Followed design guidelines: compact spacing, no shadows, consistent colors for stages.
+### Key Implementation Details
 
-### Technical Decisions
-- **Client-side Debounce**: Implemented `useMemo` + `setTimeout` for search input to prevent excessive API calls.
-- **No Drag-and-Drop (Yet)**: Focused on the visual structure and data display first (as per task requirements).
-- **No Drawer (Yet)**: Cards are clickable but don't open the details drawer yet (next task).
+#### Checklist Items
+Fixed 5 evaluation criteria:
+1. CRM válido
+2. Experiência adequada
+3. Disponibilidade compatível
+4. Perfil de comunicação
+5. Conhecimento técnico
 
-### Next Steps
-- Implement the `DoctorDetailDrawer` for candidate details.
-- Implement drag-and-drop functionality for moving candidates between stages.
+#### Form Fields
+- **Nota**: Select dropdown (1-5 scale with labels)
+- **Entrevistador**: Select dropdown (fetches from `user.listarStaff`)
+- **Resultado**: Select dropdown (aprovado/reprovado/pendente)
+- **Checklist**: Checkbox group (5 items)
+- **Observações**: Textarea (min 10 characters)
 
-## Task 6: UI Implementation - Candidate Drawer (2026-01-24)
+#### Validation
+- All fields marked with * are required
+- Nota must be 1-5
+- Observações minimum 10 characters
+- Entrevistador must be selected
 
-### Implementation Summary
-Implemented `CandidatoDrawer` using `Sheet` and `Tabs` components, integrated into the onboarding page.
+#### Audit Trail
+- Creates `CandidatoHistorico` entry with action "ENTREVISTA_REALIZADA"
+- Logs checked checklist items in detalhes
+- Creates `Auditoria` entry with full data snapshot
 
-### Key Features
-1. **Drawer Component**: Opens on card click, shows detailed candidate info.
-2. **Tabs**:
-   - **Dados**: Read-only view of candidate data (personal, professional, experience, attachments).
-   - **Histórico**: Vertical timeline of all actions (creation, stage changes, rejection).
-   - **Placeholders**: Entrevista, Treinamento, Ativação tabs prepared for future forms.
-3. **Actions**: "Rejeitar Candidato" button (UI only for now).
+### Component Structure
+- Standalone component in `components/interview-form.tsx`
+- Uses React hooks: useState, useQuery, useMutation
+- Integrates with tRPC client
+- Toast notifications for success/error
 
-### Technical Decisions
-- **Type Instantiation Issue**: Encountered "Type instantiation is excessively deep" error with `trpc.onboarding.getCandidato`.
-  - **Solution**: Used `trpcClient` directly in `queryFn` and manually typed the response with `CandidatoDetail` interface to bypass complex type inference.
-- **State Management**: Used local state `selectedId` in `OnboardingPage` to control drawer visibility.
+### UI/UX Patterns
+- Grid layout: 2 columns on desktop, 1 on mobile
+- Checklist in bordered box with subtle background
+- Clear button to reset form
+- Loading state on save button with spinner
+- Form validation before submission
+
+## Patterns Used
+
+### tRPC Procedure Pattern
+```typescript
+salvarEntrevista: staffProcedure
+  .input(z.object({ ... }))
+  .mutation(async ({ ctx, input }) => {
+    // Validation
+    // Update database
+    // Create history entry
+    // Create audit entry
+    // Return result
+  })
+```
+
+### Component Pattern
+- Separate component file for form
+- Props: candidatoId (string)
+- Internal state management with useState
+- Query for staff list
+- Mutation for save operation
+- Error handling with toast notifications
+
+### Database Pattern
+- Use existing model fields
+- Store checklist as JSON object
+- Create history entry for audit trail
+- Create auditoria entry for compliance
+
+## Conventions Followed
+
+1. **Naming**: camelCase for variables, PascalCase for components
+2. **Imports**: Organized by source (react, @tanstack, @clickmedicos, @/components)
+3. **Error Handling**: Try-catch in mutations, toast notifications
+4. **Validation**: Zod schemas for input validation
+5. **Audit**: Always create history + auditoria entries for data changes
+6. **UI**: Consistent with existing design system (Tailwind, shadcn/ui)
+
+## Notes
+
+- Interview form does NOT block stage movement (as per requirements)
+- Form can be filled multiple times (updates existing data)
+- Entrevistador is required (must select from staff list)
+- Checklist items are flexible (can check any combination)
+- Result can be changed independently of other fields

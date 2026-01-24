@@ -468,7 +468,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 3. Implementar Notificação de Email para Staff
+- [x] 3. Implementar Notificação de Email para Staff
 
   **What to do**:
   - Adicionar função `enviarEmailNovoCandidato` em `packages/api/src/services/email.service.ts`
@@ -524,7 +524,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 4. Criar Backend do Kanban (tRPC Procedures)
+- [x] 4. Criar Backend do Kanban (tRPC Procedures)
 
   **What to do**:
   - Adicionar procedures em `packages/api/src/routers/onboarding.ts`:
@@ -577,7 +577,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 5. Criar UI Base do Kanban
+- [x] 5. Criar UI Base do Kanban
 
   **What to do**:
   - Criar página `apps/web/src/app/(dashboard)/dashboard/onboarding/page.tsx`
@@ -635,7 +635,7 @@ Criar sistema de gestão de candidatos a médico com visualização Kanban, perm
 
 ---
 
-- [ ] 6. Implementar Drawer de Detalhes do Candidato
+- [x] 6. Implementar Drawer de Detalhes do Candidato
 
   **What to do**:
   - Criar componente `CandidatoDrawer` usando Sheet

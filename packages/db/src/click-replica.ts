@@ -103,14 +103,28 @@ async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
 }
 
 export const clickQueries = {
-  getMedicoById: (doctorId: number) =>
-    query<MedicoClick>(
-      `SELECT d.id as doctor_id, d.user_id, u.email, d.name, u.phone, d.crm
-       FROM doctors d
-       LEFT JOIN users u ON u.id = d.user_id
-       WHERE d.id = $1`,
-      [doctorId]
-    ),
+   getMedicoById: (doctorId: number) =>
+     query<MedicoClick>(
+       `SELECT d.id as doctor_id, d.user_id, u.email, d.name, u.phone, d.crm
+        FROM doctors d
+        LEFT JOIN users u ON u.id = d.user_id
+        WHERE d.id = $1`,
+       [doctorId]
+     ),
+
+   searchDoctorsByName: (nome: string) =>
+     query<MedicoClick>(
+       `SELECT d.id as doctor_id, d.user_id, u.email, d.name, u.phone, d.crm
+        FROM doctors d
+        LEFT JOIN users u ON u.id = d.user_id
+        WHERE d.name IS NOT NULL 
+          AND d.name NOT ILIKE '%teste%'
+          AND d.name NOT ILIKE '%test%'
+          AND d.name ILIKE $1
+        ORDER BY d.name
+        LIMIT 20`,
+       [`%${nome}%`]
+     ),
 
   // Query para SINCRONIZACAO - traz todos os medicos (so exclui teste/sem nome)
   getTodosMedicos: () =>

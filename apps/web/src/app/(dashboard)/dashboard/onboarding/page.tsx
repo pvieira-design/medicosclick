@@ -269,6 +269,94 @@ interface CandidatoDetail {
   historico: { id: string; acao: string; de?: string | null; para?: string | null; detalhes?: any; usuario?: { name: string | null } | null; createdAt: string | Date }[];
 }
 
+
+function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
+  const [tagInput, setTagInput] = useState("");
+  const queryClient = trpc.useUtils();
+
+  const adicionarTagMutation = useMutation({
+    mutationFn: async (nome: string) => {
+      return await trpcClient.onboarding.adicionarTag.mutate({
+        candidatoId: candidato.id,
+        nome,
+      });
+    },
+    onSuccess: () => {
+      setTagInput("");
+      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
+    },
+  });
+
+  const removerTagMutation = useMutation({
+    mutationFn: async (tagId: string) => {
+      return await trpcClient.onboarding.removerTag.mutate({
+        tagId,
+        candidatoId: candidato.id,
+      });
+    },
+    onSuccess: () => {
+      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
+    },
+  });
+
+  const handleAddTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (tagInput.trim()) {
+      adicionarTagMutation.mutate(tagInput.trim());
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-slate-900">Tags</h3>
+      <div className="space-y-3">
+        <form onSubmit={handleAddTag} className="flex gap-2">
+          <Input
+            placeholder="Adicionar nova tag..."
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            disabled={adicionarTagMutation.isPending}
+            className="flex-1"
+          />
+          <Button
+            type="submit"
+            disabled={!tagInput.trim() || adicionarTagMutation.isPending}
+            size="sm"
+          >
+            {adicionarTagMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Adicionar"
+            )}
+          </Button>
+        </form>
+
+        {candidato.tags && candidato.tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {candidato.tags.map((tag) => (
+              <div
+                key={tag.id}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-700"
+              >
+                <span>{tag.nome}</span>
+                <button
+                  onClick={() => removerTagMutation.mutate(tag.id)}
+                  disabled={removerTagMutation.isPending}
+                  className="hover:text-brand-900 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">Nenhuma tag adicionada</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CandidatoDrawer({ 
   open, 
   onOpenChange, 
