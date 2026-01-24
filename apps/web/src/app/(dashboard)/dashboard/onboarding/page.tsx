@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/utils/trpc";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -23,8 +23,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { InterviewForm } from "./components/interview-form";
-import { TrainingForm } from "./components/training-form";
 import { ActivationForm } from "./components/activation-form";
 
 const STAGES = [
@@ -169,7 +167,6 @@ interface Candidato {
   createdAt: string | Date;
   status: string;
   especialidades: string[];
-  tags?: { id: string; nome: string }[];
 }
 
 function CandidatoCard({ candidato, onClick }: { candidato: Candidato; onClick: () => void }) {
@@ -248,6 +245,7 @@ interface CandidatoDetail {
   disponibilidade: string;
   status: string;
   createdAt: string | Date;
+  clickDoctorId: number | null;
   anexos: { id: string; nome: string; url: string; tamanho: number; tipo: string }[];
   tags: { id: string; nome: string; criadoPor?: { name: string | null } | null; createdAt: string | Date }[];
   historico: { id: string; acao: string; de?: string | null; para?: string | null; detalhes?: any; usuario?: { name: string | null } | null; createdAt: string | Date }[];
@@ -256,7 +254,8 @@ interface CandidatoDetail {
 
 function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
   const [tagInput, setTagInput] = useState("");
-  const queryClient = trpc.useUtils();
+  const queryClient = useQueryClient();
+  
 
   const adicionarTagMutation = useMutation({
     mutationFn: async (nome: string) => {
@@ -267,7 +266,7 @@ function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
     },
     onSuccess: () => {
       setTagInput("");
-      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
+      queryClient.invalidateQueries({ queryKey: ["candidato-detail", candidato.id] });
     },
   });
 
@@ -279,149 +278,7 @@ function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
       });
     },
     onSuccess: () => {
-      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
-    },
-  });
-
-  const handleAddTag = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (tagInput.trim()) {
-      adicionarTagMutation.mutate(tagInput.trim());
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-slate-900">Tags</h3>
-      <div className="space-y-3">
-        <form onSubmit={handleAddTag} className="flex gap-2">
-          <Input
-            placeholder="Adicionar nova tag..."
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            disabled={adicionarTagMutation.isPending}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            disabled={!tagInput.trim() || adicionarTagMutation.isPending}
-            size="sm"
-          >
-            {adicionarTagMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Adicionar"
-            )}
-          </Button>
-        </form>
-
-        {candidato.tags && candidato.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {candidato.tags.map((tag) => (
-              <div
-                key={tag.id}
-                className="flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-700"
-              >
-                <span>{tag.nome}</span>
-                <button
-                  onClick={() => removerTagMutation.mutate(tag.id)}
-                  disabled={removerTagMutation.isPending}
-                  className="hover:text-brand-900 transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400">Nenhuma tag adicionada</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-  };
-
-  return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-slate-900">Tags</h3>
-      <div className="space-y-3">
-        <form onSubmit={handleAddTag} className="flex gap-2">
-          <Input
-            placeholder="Adicionar nova tag..."
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            disabled={adicionarTagMutation.isPending}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            disabled={!tagInput.trim() || adicionarTagMutation.isPending}
-            size="sm"
-          >
-            {adicionarTagMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              "Adicionar"
-            )}
-          </Button>
-        </form>
-
-        {candidato.tags && candidato.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {candidato.tags.map((tag) => (
-              <div
-                key={tag.id}
-                className="flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-700"
-              >
-                <span>{tag.nome}</span>
-                <button
-                  onClick={() => removerTagMutation.mutate(tag.id)}
-                  disabled={removerTagMutation.isPending}
-                  className="hover:text-brand-900 transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400">Nenhuma tag adicionada</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-function TagsSection({ candidato }: { candidato: CandidatoDetail }) {
-  const [tagInput, setTagInput] = useState("");
-  const queryClient = trpc.useUtils();
-
-  const adicionarTagMutation = useMutation({
-    mutationFn: async (nome: string) => {
-      return await trpcClient.onboarding.adicionarTag.mutate({
-        candidatoId: candidato.id,
-        nome,
-      });
-    },
-    onSuccess: () => {
-      setTagInput("");
-      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
-    },
-  });
-
-  const removerTagMutation = useMutation({
-    mutationFn: async (tagId: string) => {
-      return await trpcClient.onboarding.removerTag.mutate({
-        tagId,
-        candidatoId: candidato.id,
-      });
-    },
-    onSuccess: () => {
-      queryClient.onboarding.getCandidato.invalidate({ id: candidato.id });
+      queryClient.invalidateQueries({ queryKey: ["candidato-detail", candidato.id] });
     },
   });
 
@@ -707,11 +564,31 @@ function CandidatoDrawer({
                     </TabsContent>
 
                     <TabsContent value="entrevista" className="mt-0">
-                      <InterviewForm candidatoId={candidato.id} />
+                      <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                          <MessageSquare className="h-6 w-6 text-slate-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-slate-900">Avaliação de Entrevista</h3>
+                          <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">
+                            O formulário de avaliação da entrevista será implementado na próxima etapa.
+                          </p>
+                        </div>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="treinamento" className="mt-0">
-                      <TrainingForm candidatoId={candidato.id} />
+                      <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+                        <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                          <GraduationCap className="h-6 w-6 text-slate-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-slate-900">Checklist de Treinamento</h3>
+                          <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">
+                            O checklist de treinamento e onboarding será implementado em breve.
+                          </p>
+                        </div>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="ativacao" className="mt-0">

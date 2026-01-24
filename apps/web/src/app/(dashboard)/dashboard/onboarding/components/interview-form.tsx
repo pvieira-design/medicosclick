@@ -27,13 +27,13 @@ const CHECKLIST_ITEMS = [
 ];
 
 export function InterviewForm({ candidatoId }: { candidatoId: string }) {
-  const [nota, setNota] = useState<string>("");
+  const [nota, setNota] = useState<string | null>(null);
   const [observacoes, setObservacoes] = useState("");
   const [checklist, setChecklist] = useState<Record<string, boolean>>(
     CHECKLIST_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: false }), {})
   );
-  const [entrevistadorId, setEntrevistadorId] = useState("");
-  const [resultado, setResultado] = useState<"aprovado" | "reprovado" | "pendente">("pendente");
+  const [entrevistadorId, setEntrevistadorId] = useState<string | null>(null);
+  const [resultado, setResultado] = useState<"aprovado" | "reprovado" | "pendente" | null>(null);
 
   const { data: users } = useQuery({
     queryKey: ["users-staff"],
@@ -43,9 +43,9 @@ export function InterviewForm({ candidatoId }: { candidatoId: string }) {
     },
   });
 
-  const salvarMutation = useMutation({
+   const salvarMutation = useMutation({
     mutationFn: async () => {
-      if (!nota || !observacoes || !entrevistadorId) {
+      if (!nota || !observacoes || !entrevistadorId || !resultado) {
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
@@ -60,11 +60,11 @@ export function InterviewForm({ candidatoId }: { candidatoId: string }) {
     },
     onSuccess: () => {
       toast.success("Entrevista salva com sucesso!");
-      setNota("");
+      setNota(null);
       setObservacoes("");
       setChecklist(CHECKLIST_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: false }), {}));
-      setEntrevistadorId("");
-      setResultado("pendente");
+      setEntrevistadorId(null);
+      setResultado(null);
     },
     onError: (error: any) => {
       toast.error(error.message || "Erro ao salvar entrevista");
@@ -79,7 +79,7 @@ export function InterviewForm({ candidatoId }: { candidatoId: string }) {
             <Label htmlFor="nota" className="text-sm font-medium">
               Nota (1-5) *
             </Label>
-            <Select value={nota} onValueChange={setNota}>
+            <Select value={nota || ""} onValueChange={setNota}>
               <SelectTrigger id="nota" className="mt-2">
                 <SelectValue placeholder="Selecione uma nota" />
               </SelectTrigger>

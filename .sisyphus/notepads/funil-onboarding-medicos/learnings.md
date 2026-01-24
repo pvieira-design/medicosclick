@@ -146,3 +146,30 @@ salvarEntrevista: staffProcedure
 - Rounded pills with px-3 py-1 padding
 - Hover state on remove button (text-brand-900)
 - Compact display on cards (max 2 tags + count)
+
+## Training Form Implementation (2026-01-24)
+
+### Procedures Added
+- `buscarMentores`: Query to search active doctors from Click database
+- `atribuirMentor`: Assign mentor to candidate with history tracking
+- `removerMentor`: Remove mentor assignment with audit trail
+- `salvarDatasTreinamento`: Save training start/end dates with validation
+
+### Key Patterns
+1. **Mentor Search**: Uses `clickQueries.getMedicosAtivos()` to fetch active doctors only
+2. **Duplicate Prevention**: Unique constraint on candidatoId_mentorId prevents duplicate assignments
+3. **History Tracking**: All mutations create CandidatoHistorico entries with action details
+4. **Audit Trail**: All mutations create Auditoria entries for compliance
+
+### Component Structure
+- TrainingForm: Client component with mentor search, assignment display, and date inputs
+- Uses tRPC mutations with proper error handling and toast notifications
+- Mentor search filters by name/email in real-time
+- Date validation ensures fim > inicio
+
+### Technical Notes
+- Mentor IDs are stored as strings (converted from doctor_id numbers)
+- Dates are stored as DateTime in database, converted to/from Date objects in frontend
+- Form uses React Query for state management and mutations
+- Mentor removal updates UI immediately with optimistic updates
+
