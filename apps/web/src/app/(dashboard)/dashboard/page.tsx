@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   });
 
   if (dbUser?.tipo === "medico") {
-    redirect("/dashboard/meu-desempenho");
+    redirect("/dashboard/horarios");
   }
 
   return (

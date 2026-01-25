@@ -87,12 +87,13 @@ export function Sidebar({ className }: SidebarProps) {
 
     if (role === "medico") {
       items.push(
-        { title: "Meu Desempenho", icon: LayoutDashboard, href: "/dashboard/meu-desempenho" },
         { title: "Meus Horários", icon: Calendar, href: "/dashboard/horarios" },
         { title: "Solicitar Abertura", icon: PlusCircle, href: "/dashboard/solicitar" },
         { title: "Fechar Horários", icon: MinusCircle, href: "/dashboard/fechar" },
         { title: "Cancelar Emergencial", icon: Siren, href: "/dashboard/cancelamento-emergencial" },
-        { title: "Minhas Solicitações", icon: FileText, href: "/dashboard/solicitacoes" }
+        { title: "Minhas Solicitações", icon: FileText, href: "/dashboard/solicitacoes" },
+        { title: "Receitas", icon: FileText, href: "/dashboard/receitas" },
+        { title: "Certificado Digital", icon: Shield, href: "/dashboard/configuracoes/vidaas" }
       )
     }
 
@@ -103,7 +104,8 @@ export function Sidebar({ className }: SidebarProps) {
         { title: "Analytics", icon: BarChart3, href: "/dashboard/analytics" },
         { title: "Solicitações Pendentes", icon: AlertCircle, href: "/dashboard/pendentes" },
         { title: "Cancelamentos", icon: Siren, href: "/dashboard/cancelamentos" },
-        { title: "Médicos", icon: Stethoscope, href: "/dashboard/medicos" }
+        { title: "Médicos", icon: Stethoscope, href: "/dashboard/medicos" },
+        { title: "Onboarding", icon: Users, href: "/dashboard/onboarding" }
       )
     }
 

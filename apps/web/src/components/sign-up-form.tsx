@@ -35,7 +35,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
             
             try {
               const { user } = await trpcClient.me.query();
-              router.push(user?.tipo === "medico" ? "/dashboard/meu-desempenho" : "/dashboard");
+               router.push(user?.tipo === "medico" ? "/dashboard/horarios" : "/dashboard");
             } catch {
               router.push("/dashboard");
             }
