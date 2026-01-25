@@ -9,6 +9,7 @@ import { dashboardRouter } from "./dashboard";
 import { analyticsRouter } from "./analytics";
 import { notificacoesRouter } from "./notificacoes";
 import { onboardingRouter } from "./onboarding";
+import { receitaRouter } from "./receita";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => {
@@ -29,6 +30,7 @@ export const appRouter = router({
   analytics: analyticsRouter,
   notificacoes: notificacoesRouter,
   onboarding: onboardingRouter,
+  receita: receitaRouter,
 });
 
 export type AppRouter = typeof appRouter;
