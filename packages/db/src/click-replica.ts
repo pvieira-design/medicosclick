@@ -92,6 +92,15 @@ export interface HorarioClick {
   horario_fim: string;
 }
 
+export interface ProductClick {
+  id: number;
+  title: string;
+  formula: string | null;
+  type: string | null;
+  volume: number | null;
+  price: number;
+}
+
 async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
   const client = await clickPool.connect();
   try {
@@ -798,13 +807,112 @@ export const clickQueries = {
        ORDER BY d.id`
     ),
 
-  getPrioridadeMedico: (doctorId: number) =>
-    query<{ doctor_id: number; priority: number }>(
-      `SELECT d.id AS doctor_id, COALESCE(d.priority, 0)::int AS priority
-       FROM doctors d
-       WHERE d.id = $1`,
-      [doctorId]
-    ),
+   getPrioridadeMedico: (doctorId: number) =>
+     query<{ doctor_id: number; priority: number }>(
+       `SELECT d.id AS doctor_id, COALESCE(d.priority, 0)::int AS priority
+        FROM doctors d
+        WHERE d.id = $1`,
+       [doctorId]
+     ),
+
+   buscarProdutos: () =>
+     query<ProductClick>(
+       `SELECT 
+         p.id,
+         p.title,
+         p.formula,
+         p.type,
+         p.volume,
+         p.price
+        FROM products p
+        WHERE p.quantity > 0
+          AND p.price > 0
+        ORDER BY p.title ASC`
+     ),
+
+   buscarConsultasRecentesMedico: (doctorId: number, limite: number = 20) =>
+     query<{
+       id: number;
+       doctor_id: number;
+       user_id: number | null;
+       patient_name: string | null;
+       start: string;
+       completed: boolean;
+     }>(
+       `SELECT 
+         c.id,
+         c.doctor_id,
+         c.user_id,
+         TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS patient_name,
+         c.start,
+         c.completed
+        FROM consultings c
+        LEFT JOIN users u ON u.id = c.user_id
+        WHERE c.doctor_id = $1
+          AND c.user_id IS NOT NULL
+          AND c.completed = TRUE
+        ORDER BY c.start DESC
+        LIMIT $2`,
+       [doctorId, limite]
+     ),
+
+   /**
+    * Busca dados de anamnese para uma consulta específica
+    * 
+    * Estrutura do campo `data` (JSONB):
+    * Array de objetos com a seguinte estrutura:
+    * [
+    *   {
+    *     "question": "Nome completo do paciente",
+    *     "answer": "Maria Silva" | ["Opção 1", "Opção 2"] | true | 123
+    *   },
+    *   {
+    *     "question": "Gênero do paciente",
+    *     "answer": "Gênero Feminino"
+    *   },
+    *   ...
+    * ]
+    * 
+    * Campos importantes encontrados:
+    * - "Nome completo do paciente" → string
+    * - "Gênero do paciente" → string (ex: "Gênero Feminino")
+    * - "Data de nascimento" → string (formato YYYY-MM-DD)
+    * - "Peso do paciente" → number
+    * - "Altura do paciente" → number
+    * - "Já usou ou faz uso de Cannabis?" → string
+    * - "Você possui alguma condição clínica?" → array de strings
+    * - "Possui algum problema de saúde?" → string
+    * - "Você tem alergias?" → string
+    * - "Você usa medicamentos ou suplementos diariamente?" → string
+    * - "Quantas vezes por semana você faz atividade física?" → string
+    * - "Você ingere frutas e hortaliças diariamente?" → boolean
+    * - "Como considera a qualidade do seu sono?" → string
+    * - "Quantas horas costuma dormir por dia?" → string
+    * - "Por que você está buscando a cannabis medicinal?" → string
+    * - "Onde conheceu a Click Cannabis?" → string
+    * - "Quem está preenchendo o formulário?" → string
+    * - "Nome do representante legal" → string
+    * - "Grau de parentesco" → string
+    * 
+    * Nota: O campo `answer` pode ser string, number, boolean ou array dependendo do tipo de pergunta.
+    */
+   buscarDadosAnamnese: (consultingId: number) =>
+     query<{ data: Record<string, unknown> | null }>(
+       `SELECT a.data
+        FROM anamnese a
+        WHERE a.consulting_id = $1`,
+       [consultingId]
+     ),
+
+   buscarDadosPaciente: (userId: number) =>
+     query<{ first_name: string | null; last_name: string | null }>(
+       `SELECT 
+         u.first_name,
+         u.last_name
+        FROM users u
+        WHERE u.id = $1`,
+       [userId]
+     ),
 };
 
 /**
