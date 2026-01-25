@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { trpcClient } from "@/utils/trpc";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trpc, trpcClient } from "@/utils/trpc";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -27,29 +27,57 @@ const CHECKLIST_ITEMS = [
 ];
 
 export function InterviewForm({ candidatoId }: { candidatoId: string }) {
-  const [nota, setNota] = useState<string | null>(null);
-  const [observacoes, setObservacoes] = useState("");
-  const [checklist, setChecklist] = useState<Record<string, boolean>>(
-    CHECKLIST_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: false }), {})
-  );
-  const [entrevistadorId, setEntrevistadorId] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<"aprovado" | "reprovado" | "pendente" | null>(null);
+   const queryClient = useQueryClient();
+   const [nota, setNota] = useState<string | null>(null);
+   const [observacoes, setObservacoes] = useState("");
+   const [checklist, setChecklist] = useState<Record<string, boolean>>(
+     CHECKLIST_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: false }), {})
+   );
+   const [entrevistadorId, setEntrevistadorId] = useState<string | null>(null);
+   const [resultado, setResultado] = useState<"aprovado" | "reprovado" | "pendente" | null>(null);
 
-   const { data: users } = useQuery({
-     queryKey: ["users-staff"],
-     queryFn: async () => {
-       const result = await trpcClient.usuarios.listar.query({
-         tipo: undefined,
-         page: 1,
-         perPage: 100,
-       });
-       return result.usuarios.filter((u: any) =>
-         ["admin", "atendente", "diretor", "super_admin"].includes(u.tipo)
-       );
-     },
-   });
+   const { data: candidato } = useQuery(
+     trpc.onboarding.getCandidato.queryOptions({
+       id: candidatoId,
+     })
+   );
 
-   const salvarMutation = useMutation({
+    const { data: users } = useQuery({
+      queryKey: ["users-staff"],
+      queryFn: async () => {
+        const result = await trpcClient.usuarios.listar.query({
+          tipo: undefined,
+          page: 1,
+          perPage: 100,
+        });
+        return result.usuarios.filter((u: any) =>
+          ["admin", "atendente", "diretor", "super_admin"].includes(u.tipo)
+        );
+      },
+    });
+
+   useEffect(() => {
+     if (!candidato) return;
+     
+     const c = candidato as any;
+     if (c.entrevistaNota !== null && c.entrevistaNota !== undefined) {
+       setNota(String(c.entrevistaNota));
+     }
+     if (c.entrevistaObservacoes) {
+       setObservacoes(c.entrevistaObservacoes);
+     }
+     if (c.entrevistaChecklist && typeof c.entrevistaChecklist === 'object') {
+       setChecklist(c.entrevistaChecklist);
+     }
+     if (c.entrevistadorId) {
+       setEntrevistadorId(c.entrevistadorId);
+     }
+     if (c.entrevistaResultado && ['aprovado', 'reprovado', 'pendente'].includes(c.entrevistaResultado)) {
+       setResultado(c.entrevistaResultado);
+     }
+   }, [candidato?.id]);
+
+    const salvarMutation = useMutation({
     mutationFn: async () => {
       if (!nota || !observacoes || !entrevistadorId || !resultado) {
         throw new Error("Preencha todos os campos obrigatórios");
@@ -64,14 +92,10 @@ export function InterviewForm({ candidatoId }: { candidatoId: string }) {
         resultado,
       });
     },
-    onSuccess: () => {
-      toast.success("Entrevista salva com sucesso!");
-      setNota(null);
-      setObservacoes("");
-      setChecklist(CHECKLIST_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: false }), {}));
-      setEntrevistadorId(null);
-      setResultado(null);
-    },
+     onSuccess: () => {
+       queryClient.invalidateQueries();
+       toast.success("Entrevista salva com sucesso!");
+     },
     onError: (error: any) => {
       toast.error(error.message || "Erro ao salvar entrevista");
     },

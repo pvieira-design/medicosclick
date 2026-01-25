@@ -48,6 +48,15 @@ export function TrainingForm({ candidatoId }: TrainingFormProps) {
      }
    }, [candidato?.mentores]);
 
+   useEffect(() => {
+     if (candidato?.treinamentoInicio) {
+       setDataInicio(new Date(candidato.treinamentoInicio).toISOString().split('T')[0]);
+     }
+     if (candidato?.treinamentoFim) {
+       setDataFim(new Date(candidato.treinamentoFim).toISOString().split('T')[0]);
+     }
+   }, [candidato?.treinamentoInicio, candidato?.treinamentoFim]);
+
   const atribuirMentorMutation = useMutation({
     mutationFn: (input: { candidatoId: string; mentorId: string; mentorNome: string }) =>
       trpcClient.onboarding.atribuirMentor.mutate(input),
