@@ -12,10 +12,11 @@ model User {
    // Campos especificos do ClickMedicos
    tipo          UserTipo  @default(medico)
    ativo         Boolean   @default(true)
-   clickDoctorId Int?      @unique  // ID na tabela doctors do Click
-   crm           String?            // CRM do médico (ex: "12345-SP")
-   cpf           String?            // CPF do médico (para VIDaaS)
-   enderecoConsultorio String?      // Endereço do consultório
+    clickDoctorId Int?      @unique  // ID na tabela doctors do Click
+    crm           String?            // CRM do médico (ex: "12345-SP")
+    ufCrm         String?            // UF do CRM (estado)
+    cpf           String?            // CPF do médico (para VIDaaS)
+    enderecoConsultorio String?      // Endereço do consultório
   
   // Campos do medico
   faixa         Faixa     @default(P5)

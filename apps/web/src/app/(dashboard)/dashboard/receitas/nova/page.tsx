@@ -7,8 +7,26 @@ import { Step2Produtos, type ProdutoItem } from "@/components/receita/wizard/Ste
 import { Step3Revisao } from "@/components/receita/wizard/Step3Revisao";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, Download, ArrowLeft } from "lucide-react";
-import { trpc } from "@/utils/trpc";
+import { CheckCircle2, Download, ArrowLeft, ExternalLink } from "lucide-react";
+
+function openPdfFromDataUrl(dataUrl: string) {
+  const base64Match = dataUrl.match(/^data:application\/pdf;base64,(.+)$/);
+  if (!base64Match) {
+    window.open(dataUrl, "_blank");
+    return;
+  }
+  
+  const base64 = base64Match[1];
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
 
 export default function NovaReceitaPage() {
   const router = useRouter();
@@ -17,6 +35,8 @@ export default function NovaReceitaPage() {
   const [produtos, setProdutos] = useState<ProdutoItem[]>([]);
   const [alertas, setAlertas] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
+  const [successReceitaId, setSuccessReceitaId] = useState<string | null>(null);
+  const [successPdfUrl, setSuccessPdfUrl] = useState<string | null>(null);
 
   const handleStep1Next = (id: number) => {
     setConsultingId(id);
@@ -29,7 +49,9 @@ export default function NovaReceitaPage() {
     setStep(3);
   };
 
-  const handleSuccess = () => {
+  const handleSuccess = (receitaId: string, pdfUrl?: string) => {
+    setSuccessReceitaId(receitaId);
+    setSuccessPdfUrl(pdfUrl ?? null);
     setIsSuccess(true);
   };
 
@@ -50,10 +72,23 @@ export default function NovaReceitaPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Lista
           </Button>
-          <Button className="bg-brand-600 hover:bg-brand-700 text-white">
-            <Download className="mr-2 h-4 w-4" />
-            Baixar PDF
-          </Button>
+          {successPdfUrl ? (
+            <Button 
+              className="bg-brand-600 hover:bg-brand-700 text-white"
+              onClick={() => openPdfFromDataUrl(successPdfUrl)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Baixar PDF
+            </Button>
+          ) : successReceitaId ? (
+            <Button 
+              variant="outline"
+              onClick={() => router.push(`/dashboard/receitas/${successReceitaId}/editar` as any)}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Abrir Receita
+            </Button>
+          ) : null}
         </div>
       </div>
     );

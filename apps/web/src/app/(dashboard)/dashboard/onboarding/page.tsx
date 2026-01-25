@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Clock, Calendar, FileText, MessageSquare, GraduationCap, CheckCircle, History, User, Mail, Phone, MapPin, FileIcon, AlertCircle, Loader2, X } from "lucide-react";
+import { Search, Clock, Calendar, FileText, MessageSquare, GraduationCap, CheckCircle, History, User, Mail, Phone, MapPin, FileIcon, AlertCircle, Loader2, X, Link2, Copy } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
@@ -110,6 +110,20 @@ export default function OnboardingPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              const url = `${window.location.origin}/candidatura`;
+              navigator.clipboard.writeText(url);
+              toast.success("Link copiado para a área de transferência!");
+            }}
+          >
+            <Link2 className="h-4 w-4" />
+            Copiar Link de Inscrição
+          </Button>
+
           <div className="relative w-full md:w-64">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
             <Input
@@ -459,6 +473,7 @@ function CandidatoDrawer({
 }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const queryClient = useQueryClient();
   
   const { data: candidato, isLoading, refetch } = useQuery({
     queryKey: ["candidato-detail", candidatoId],
@@ -481,7 +496,7 @@ function CandidatoDrawer({
       toast.success("Candidato rejeitado com sucesso");
       setShowRejectModal(false);
       setRejectMotivo("");
-      refetch();
+      queryClient.invalidateQueries();
       onOpenChange(false);
     },
     onError: (error: any) => {

@@ -5,6 +5,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, FileText, CheckCircle, AlertCircle, ArrowLeft, Save, PenTool } from "lucide-react";
 import { toast } from "sonner";
 import { type ReceitaData, gerarReceitaPdfBase64 } from "@/components/receita/ReceitaPDF";
@@ -17,7 +19,7 @@ interface Step3Props {
   produtos: ProdutoItem[];
   alertas: string;
   onBack: () => void;
-  onSuccess: () => void;
+  onSuccess: (receitaId: string, pdfUrl?: string) => void;
 }
 
 export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSuccess }: Step3Props) {
@@ -26,6 +28,8 @@ export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSucces
   const [receitaId, setReceitaId] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [pacienteNome, setPacienteNome] = useState("");
+  const [pacienteCpf, setPacienteCpf] = useState("");
 
   const { data: dadosConsulta } = useQuery(
     trpc.receita.buscarDadosConsulta.queryOptions(
@@ -57,36 +61,47 @@ export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSucces
   );
 
   useEffect(() => {
-    if (statusAssinatura?.status === "ASSINADA") {
+    if (statusAssinatura?.status === "ASSINADA" && receitaId) {
       setIsPolling(false);
       setShowSignatureModal(false);
+      
+      // IMPORTANTE: Usar o PDF assinado pelo VIDaaS diretamente
+      // NÃO regenerar o PDF, pois isso destruiria a assinatura digital ICP-Brasil
       toast.success("Receita assinada com sucesso!");
-      onSuccess();
+      onSuccess(receitaId, statusAssinatura.pdfUrl ?? undefined);
     }
-  }, [statusAssinatura, onSuccess]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusAssinatura, receitaId]);
 
-  const getReceitaData = (): ReceitaData | null => {
-    if (!dadosConsulta) return null;
+  useEffect(() => {
+    if (dadosConsulta?.paciente.nome) {
+      setPacienteNome(dadosConsulta.paciente.nome);
+    }
+  }, [dadosConsulta]);
 
-    return {
-      medico: {
-        nome: "Médico",
-        crm: "00000",
-        uf: "UF",
-        endereco: "Endereço do Consultório",
-      },
-      paciente: {
-        nome: dadosConsulta.paciente.nome,
-      },
-      produtos: produtos.map(p => ({
-        nome: p.nome,
-        concentracao: p.concentracao || "",
-        quantidade: p.quantidade,
-        posologia: p.posologia,
-      })),
-      dataEmissao: new Date(),
+    const getReceitaData = (): ReceitaData | null => {
+      if (!dadosConsulta || !credenciaisVidaas) return null;
+
+       return {
+         medico: {
+           nome: credenciaisVidaas.name || "Médico",
+           crm: credenciaisVidaas.crm || "00000",
+           uf: credenciaisVidaas.ufCrm || "UF",
+           endereco: credenciaisVidaas.enderecoConsultorio || "Endereço do Consultório",
+         },
+         paciente: {
+           nome: pacienteNome,
+           cpf: pacienteCpf,
+         },
+         produtos: produtos.map(p => ({
+           nome: p.nome,
+           concentracao: p.concentracao || "",
+           quantidade: p.quantidade,
+           posologia: p.posologia,
+         })),
+         dataEmissao: new Date(),
+       };
     };
-  };
 
   const handlePreview = async () => {
     const data = getReceitaData();
@@ -113,31 +128,32 @@ export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSucces
     }
   };
 
-  const handleSaveDraft = async () => {
-    if (!dadosConsulta) return;
+   const handleSaveDraft = async () => {
+     if (!dadosConsulta) return;
 
-    try {
-      const receita = await criarReceitaMutation.mutateAsync({
-        consultaClickId: consultingId,
-        pacienteNome: dadosConsulta.paciente.nome,
-        pacienteEndereco: dadosConsulta.paciente.endereco,
-        produtos: produtos.map(p => ({
-          nome: p.nome,
-          quantidade: p.quantidade,
-          posologia: p.posologia,
-          concentracao: p.concentracao,
-        })),
-        alertas,
-        posologia: produtos.map(p => `${p.nome}: ${p.posologia}`).join("\n"),
-      });
+     try {
+       const receita = await criarReceitaMutation.mutateAsync({
+         consultaClickId: consultingId,
+         pacienteNome: pacienteNome,
+         pacienteCpf: pacienteCpf,
+         pacienteEndereco: dadosConsulta.paciente.endereco,
+         produtos: produtos.map(p => ({
+           nome: p.nome,
+           quantidade: p.quantidade,
+           posologia: p.posologia,
+           concentracao: p.concentracao,
+         })),
+         alertas,
+         posologia: produtos.map(p => `${p.nome}: ${p.posologia}`).join("\n"),
+       });
 
-      setReceitaId(receita.id);
-      toast.success("Rascunho salvo com sucesso!");
-      onSuccess();
-    } catch (error) {
-      toast.error("Erro ao salvar rascunho");
-    }
-  };
+       setReceitaId(receita.id);
+       toast.success("Rascunho salvo com sucesso!");
+       onSuccess(receita.id);
+     } catch (error) {
+       toast.error("Erro ao salvar rascunho");
+     }
+   };
 
   const handleSign = async () => {
     if (!dadosConsulta) return;
@@ -149,34 +165,43 @@ export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSucces
     try {
       setShowSignatureModal(true);
       
-      let currentReceitaId = receitaId;
-      if (!currentReceitaId) {
-        const receita = await criarReceitaMutation.mutateAsync({
-          consultaClickId: consultingId,
-          pacienteNome: dadosConsulta.paciente.nome,
-          pacienteEndereco: dadosConsulta.paciente.endereco,
-          produtos: produtos.map(p => ({
-            nome: p.nome,
-            quantidade: p.quantidade,
-            posologia: p.posologia,
-            concentracao: p.concentracao,
-          })),
-          alertas,
-          posologia: produtos.map(p => `${p.nome}: ${p.posologia}`).join("\n"),
-        });
-        currentReceitaId = receita.id;
-        setReceitaId(receita.id);
-      }
+       let currentReceitaId = receitaId;
+       if (!currentReceitaId) {
+         const receita = await criarReceitaMutation.mutateAsync({
+           consultaClickId: consultingId,
+           pacienteNome: pacienteNome,
+           pacienteCpf: pacienteCpf,
+           pacienteEndereco: dadosConsulta.paciente.endereco,
+           produtos: produtos.map(p => ({
+             nome: p.nome,
+             quantidade: p.quantidade,
+             posologia: p.posologia,
+             concentracao: p.concentracao,
+           })),
+           alertas,
+           posologia: produtos.map(p => `${p.nome}: ${p.posologia}`).join("\n"),
+         });
+         currentReceitaId = receita.id;
+         setReceitaId(receita.id);
+       }
 
       const data = getReceitaData();
       if (!data) throw new Error("Dados incompletos");
       const base64 = await gerarReceitaPdfBase64(data);
 
       setIsPolling(true);
-      await assinarReceitaMutation.mutateAsync({
+      const result = await assinarReceitaMutation.mutateAsync({
         receitaId: currentReceitaId,
         pdfBase64: base64,
       });
+      
+      setIsPolling(false);
+      setShowSignatureModal(false);
+      
+      if (result.success) {
+        toast.success("Receita assinada com sucesso!");
+        onSuccess(currentReceitaId, result.pdfUrl);
+      }
       
     } catch (error) {
       setShowSignatureModal(false);
@@ -194,14 +219,35 @@ export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSucces
         </p>
       </div>
 
-      <Card className="p-6 border-gray-200 space-y-6">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Paciente</h3>
-            <p className="text-lg font-medium text-gray-900">{dadosConsulta?.paciente.nome}</p>
-          </div>
+       <Card className="p-6 border-gray-200 space-y-6">
+         <div className="space-y-4">
+           <div>
+             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Paciente</h3>
+             <div className="space-y-4">
+               <div>
+                 <Label htmlFor="paciente-nome">Nome do Paciente</Label>
+                 <Input 
+                   id="paciente-nome"
+                   value={pacienteNome}
+                   onChange={(e) => setPacienteNome(e.target.value)}
+                   placeholder="Nome completo do paciente"
+                   className="mt-1"
+                 />
+               </div>
+               <div>
+                 <Label htmlFor="paciente-cpf">CPF do Paciente (opcional)</Label>
+                 <Input 
+                   id="paciente-cpf"
+                   value={pacienteCpf}
+                   onChange={(e) => setPacienteCpf(e.target.value)}
+                   placeholder="000.000.000-00"
+                   className="mt-1"
+                 />
+               </div>
+             </div>
+           </div>
 
-          <div>
+           <div>
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Medicamentos</h3>
             <div className="space-y-3">
               {produtos.map((p, i) => (
@@ -214,19 +260,50 @@ export function Step3Revisao({ consultingId, produtos, alertas, onBack, onSucces
                 </div>
               ))}
             </div>
-          </div>
+           </div>
 
-          {alertas && (
-            <div>
-              <h3 className="text-sm font-medium text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Alertas
-              </h3>
-              <p className="text-sm text-gray-700 mt-1 bg-amber-50 p-3 rounded-md border border-amber-100">
-                {alertas}
-              </p>
-            </div>
-          )}
+           {/* Seção de Patologias/Indicações */}
+           {dadosConsulta?.patologias && dadosConsulta.patologias.length > 0 && (
+             <div>
+               <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">
+                 Indicações / Patologias
+               </h3>
+               <div className="flex flex-wrap gap-2">
+                 {dadosConsulta.patologias.map((p, i) => (
+                   <span 
+                     key={i} 
+                     className="px-3 py-1 bg-blue-50 text-blue-700 rounded-md text-sm border border-blue-200"
+                   >
+                     {p}
+                   </span>
+                 ))}
+               </div>
+             </div>
+           )}
+
+           {/* Motivo da Busca */}
+           {dadosConsulta?.motivoBusca && (
+             <div>
+               <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                 Motivo da Consulta
+               </h3>
+               <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-3 rounded-md border border-gray-100">
+                 {dadosConsulta.motivoBusca}
+               </p>
+             </div>
+           )}
+
+           {alertas && (
+             <div>
+               <h3 className="text-sm font-medium text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                 <AlertCircle className="h-3 w-3" />
+                 Alertas
+               </h3>
+               <p className="text-sm text-gray-700 mt-1 bg-amber-50 p-3 rounded-md border border-amber-100">
+                 {alertas}
+               </p>
+             </div>
+           )}
         </div>
 
         <div className="flex justify-center pt-2">

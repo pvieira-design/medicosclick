@@ -41,6 +41,25 @@ import {
 import { type ReceitaData, gerarReceitaPdfBase64 } from "@/components/receita/ReceitaPDF";
 import { type ProdutoItem } from "@/components/receita/wizard/Step2Produtos";
 
+function openPdfFromDataUrl(dataUrl: string) {
+  const base64Match = dataUrl.match(/^data:application\/pdf;base64,(.+)$/);
+  if (!base64Match) {
+    window.open(dataUrl, "_blank");
+    return;
+  }
+  
+  const base64 = base64Match[1];
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
 export default function EditarReceitaPage() {
   const router = useRouter();
   const params = useParams();
@@ -55,6 +74,7 @@ export default function EditarReceitaPage() {
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
 
   const { data: receita, isLoading: isLoadingReceita, isError } = useQuery(
     trpc.receita.buscarReceita.queryOptions(
@@ -109,12 +129,14 @@ export default function EditarReceitaPage() {
   );
 
   useEffect(() => {
-    if (statusAssinatura?.status === "ASSINADA") {
+    if (statusAssinatura?.status === "ASSINADA" && !isSuccess) {
       setIsPolling(false);
       setShowSignatureModal(false);
+      setSignedPdfUrl(statusAssinatura.pdfUrl ?? null);
       toast.success("Receita assinada com sucesso!");
       setIsSuccess(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusAssinatura]);
 
   const atualizarReceitaMutation = useMutation({
@@ -153,7 +175,7 @@ export default function EditarReceitaPage() {
     }
   };
 
-  const getReceitaData = (): ReceitaData | null => {
+  const getReceitaData = (incluirAssinatura = false): ReceitaData | null => {
     if (!receita || !credenciaisVidaas) return null;
 
     const crmParts = credenciaisVidaas.crm?.split("-") || [];
@@ -176,6 +198,13 @@ export default function EditarReceitaPage() {
         posologia: p.posologia,
       })),
       dataEmissao: new Date(),
+      ...(incluirAssinatura && {
+        assinatura: {
+          receitaId: receitaId,
+          dataAssinatura: new Date(),
+          certificadoTitular: credenciaisVidaas.name || "Medico",
+        },
+      }),
     };
   };
 
@@ -302,7 +331,7 @@ export default function EditarReceitaPage() {
           {receita.pdfUrl && (
             <Button
               className="bg-brand-600 hover:bg-brand-700 text-white"
-              onClick={() => window.open(receita.pdfUrl!, "_blank")}
+              onClick={() => openPdfFromDataUrl(receita.pdfUrl!)}
             >
               <Download className="mr-2 h-4 w-4" />
               Baixar PDF
@@ -313,8 +342,8 @@ export default function EditarReceitaPage() {
     );
   }
 
-  // Success state after signing
   if (isSuccess) {
+    const pdfToDownload = signedPdfUrl || statusAssinatura?.pdfUrl;
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 animate-in fade-in zoom-in duration-500">
         <div className="bg-green-100 p-6 rounded-full">
@@ -329,10 +358,15 @@ export default function EditarReceitaPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Lista
           </Button>
-          <Button className="bg-brand-600 hover:bg-brand-700 text-white">
-            <Download className="mr-2 h-4 w-4" />
-            Baixar PDF
-          </Button>
+          {pdfToDownload && (
+            <Button 
+              className="bg-brand-600 hover:bg-brand-700 text-white"
+              onClick={() => openPdfFromDataUrl(pdfToDownload)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Baixar PDF
+            </Button>
+          )}
         </div>
       </div>
     );

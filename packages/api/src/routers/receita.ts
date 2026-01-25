@@ -1,7 +1,7 @@
 import { z } from "zod";
 import prisma from "@clickmedicos/db";
 import { clickQueries } from "@clickmedicos/db/click-replica";
-import { router, medicoProcedure } from "../index";
+import { router, medicoProcedure, publicProcedure } from "../index";
 import { getVidaasService } from "../services/vidaas.service";
 import { TRPCError } from "@trpc/server";
 
@@ -68,6 +68,8 @@ export const receitaRouter = router({
 
         let pacienteNome = consulta.patient_name || "";
         let pacienteEndereco = "";
+        let patologias: string[] = [];
+        let motivoBusca = "";
 
         if (anamneseResult?.data && Array.isArray(anamneseResult.data)) {
           const anamneseData = anamneseResult.data as Array<{ question: string; answer: unknown }>;
@@ -78,6 +80,27 @@ export const receitaRouter = router({
           if (nomeItem && typeof nomeItem.answer === "string") {
             pacienteNome = nomeItem.answer;
           }
+
+          const condicoesItem = anamneseData.find((item) => 
+            item.question?.toLowerCase().includes("condição clínica")
+          );
+          if (condicoesItem && Array.isArray(condicoesItem.answer)) {
+            patologias.push(...condicoesItem.answer.filter(v => typeof v === 'string' && v.trim()));
+          }
+
+          const problemaItem = anamneseData.find((item) => 
+            item.question?.toLowerCase().includes("problema de saúde")
+          );
+          if (problemaItem && typeof problemaItem.answer === "string" && problemaItem.answer.trim()) {
+            patologias.push(problemaItem.answer.trim());
+          }
+
+          const motivoItem = anamneseData.find((item) => 
+            item.question?.toLowerCase().includes("buscando a cannabis")
+          );
+          if (motivoItem && typeof motivoItem.answer === "string") {
+            motivoBusca = motivoItem.answer.trim();
+          }
         }
 
         return {
@@ -85,6 +108,8 @@ export const receitaRouter = router({
             nome: pacienteNome,
             endereco: pacienteEndereco,
           },
+          patologias: [...new Set(patologias)],
+          motivoBusca,
           anamnese: anamneseResult?.data ?? null,
         };
       } catch (error) {
@@ -99,43 +124,54 @@ export const receitaRouter = router({
 
   listarProdutos: medicoProcedure.query(async () => {
     try {
-      return await clickQueries.buscarProdutos();
+      const produtos = await clickQueries.buscarProdutos();
+      // Transform "title" to "name" for frontend compatibility
+      return produtos.map((p) => ({
+        id: p.id,
+        name: p.title,
+        formula: p.formula,
+        type: p.type,
+        volume: p.volume,
+        price: p.price,
+      }));
     } catch (error) {
       console.error("[listarProdutos] Erro:", error);
       return [];
     }
   }),
 
-  criarReceita: medicoProcedure
-    .input(
-      z.object({
-        consultaClickId: z.number().int().positive().optional(),
-        pacienteNome: z.string().min(1),
-        pacienteEndereco: z.string().optional(),
-        produtos: z.array(produtoSchema).min(1),
-        posologia: z.string().min(1),
-        alertas: z.string().optional(),
-        observacoes: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const dataValidade = new Date();
-      dataValidade.setMonth(dataValidade.getMonth() + 6);
+   criarReceita: medicoProcedure
+     .input(
+       z.object({
+         consultaClickId: z.number().int().positive().optional(),
+         pacienteNome: z.string().min(1),
+         pacienteEndereco: z.string().optional(),
+         pacienteCpf: z.string().optional(),
+         produtos: z.array(produtoSchema).min(1),
+         posologia: z.string().min(1),
+         alertas: z.string().optional(),
+         observacoes: z.string().optional(),
+       })
+     )
+     .mutation(async ({ ctx, input }) => {
+       const dataValidade = new Date();
+       dataValidade.setMonth(dataValidade.getMonth() + 6);
 
-      const receita = await prisma.receita.create({
-        data: {
-          medicoId: ctx.medico.id,
-          consultaClickId: input.consultaClickId,
-          pacienteNome: input.pacienteNome,
-          pacienteEndereco: input.pacienteEndereco,
-          produtos: input.produtos,
-          posologia: input.posologia,
-          alertas: input.alertas,
-          observacoes: input.observacoes,
-          status: ReceitaStatus.RASCUNHO,
-          dataValidade,
-        },
-      });
+       const receita = await prisma.receita.create({
+         data: {
+           medicoId: ctx.medico.id,
+           consultaClickId: input.consultaClickId,
+           pacienteNome: input.pacienteNome,
+           pacienteEndereco: input.pacienteEndereco,
+           pacienteCpf: input.pacienteCpf,
+           produtos: input.produtos,
+           posologia: input.posologia,
+           alertas: input.alertas,
+           observacoes: input.observacoes,
+           status: ReceitaStatus.RASCUNHO,
+           dataValidade,
+         },
+       });
 
       await prisma.receitaAuditoria.create({
         data: {
@@ -148,50 +184,51 @@ export const receitaRouter = router({
       return receita;
     }),
 
-  atualizarReceita: medicoProcedure
-    .input(
-      z.object({
-        receitaId: z.string().uuid(),
-        pacienteNome: z.string().min(1).optional(),
-        pacienteEndereco: z.string().optional(),
-        produtos: z.array(produtoSchema).min(1).optional(),
-        posologia: z.string().min(1).optional(),
-        alertas: z.string().optional(),
-        observacoes: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const receita = await prisma.receita.findUnique({
-        where: { id: input.receitaId },
-      });
+   atualizarReceita: medicoProcedure
+     .input(
+       z.object({
+         receitaId: z.string().uuid(),
+         pacienteNome: z.string().min(1).optional(),
+         pacienteEndereco: z.string().optional(),
+         pacienteCpf: z.string().optional(),
+         produtos: z.array(produtoSchema).min(1).optional(),
+         posologia: z.string().min(1).optional(),
+         alertas: z.string().optional(),
+         observacoes: z.string().optional(),
+       })
+     )
+     .mutation(async ({ ctx, input }) => {
+       const receita = await prisma.receita.findUnique({
+         where: { id: input.receitaId },
+       });
 
-      if (!receita) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Receita não encontrada",
-        });
-      }
+       if (!receita) {
+         throw new TRPCError({
+           code: "NOT_FOUND",
+           message: "Receita não encontrada",
+         });
+       }
 
-      if (receita.medicoId !== ctx.medico.id) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Você não tem permissão para editar esta receita",
-        });
-      }
+       if (receita.medicoId !== ctx.medico.id) {
+         throw new TRPCError({
+           code: "FORBIDDEN",
+           message: "Você não tem permissão para editar esta receita",
+         });
+       }
 
-      if (receita.status === ReceitaStatus.ASSINADA) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Receitas assinadas não podem ser editadas",
-        });
-      }
+       if (receita.status === ReceitaStatus.ASSINADA) {
+         throw new TRPCError({
+           code: "BAD_REQUEST",
+           message: "Receitas assinadas não podem ser editadas",
+         });
+       }
 
-      const { receitaId, ...updateData } = input;
+       const { receitaId, ...updateData } = input;
 
-      const receitaAtualizada = await prisma.receita.update({
-        where: { id: receitaId },
-        data: updateData,
-      });
+       const receitaAtualizada = await prisma.receita.update({
+         where: { id: receitaId },
+         data: updateData,
+       });
 
       await prisma.receitaAuditoria.create({
         data: {
@@ -244,27 +281,13 @@ export const receitaRouter = router({
         });
       }
 
-      const credentials = await prisma.vidaasCredentials.findUnique({
-        where: { medicoId: ctx.medico.id },
-      });
-
-      if (!credentials) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Credenciais VIDaaS não configuradas. Configure suas credenciais primeiro.",
-        });
-      }
-
       await prisma.receita.update({
         where: { id: input.receitaId },
         data: { status: ReceitaStatus.PENDENTE_ASSINATURA },
       });
 
       try {
-        const vidaasService = getVidaasService({
-          clientId: credentials.clientId,
-          clientSecret: credentials.clientSecret,
-        });
+        const vidaasService = getVidaasService();
 
         const resultado = await vidaasService.assinarReceita(
           medico.cpf,
@@ -333,6 +356,34 @@ export const receitaRouter = router({
         pdfUrl: receita.pdfUrl,
         assinada: receita.status === ReceitaStatus.ASSINADA,
       };
+    }),
+
+  atualizarPdfAssinado: medicoProcedure
+    .input(z.object({ receitaId: z.string().uuid(), pdfBase64: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const receita = await prisma.receita.findUnique({
+        where: { id: input.receitaId },
+        select: { id: true, status: true, medicoId: true },
+      });
+
+      if (!receita) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Receita não encontrada" });
+      }
+
+      if (receita.medicoId !== ctx.medico.id) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão" });
+      }
+
+      if (receita.status !== ReceitaStatus.ASSINADA) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Receita não está assinada" });
+      }
+
+      await prisma.receita.update({
+        where: { id: input.receitaId },
+        data: { pdfUrl: `data:application/pdf;base64,${input.pdfBase64}` },
+      });
+
+      return { success: true };
     }),
 
   listarReceitas: medicoProcedure
@@ -467,49 +518,31 @@ export const receitaRouter = router({
   salvarCredenciaisVidaas: medicoProcedure
     .input(
       z.object({
-        clientId: z.string().min(1),
-        clientSecret: z.string().min(1),
         cpf: z.string().optional(),
         enderecoConsultorio: z.string().optional(),
+        ufCrm: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { clientId, clientSecret, cpf, enderecoConsultorio } = input;
+      const { cpf, enderecoConsultorio, ufCrm } = input;
 
-      if (cpf || enderecoConsultorio) {
-        await prisma.user.update({
-          where: { id: ctx.medico.id },
-          data: {
-            ...(cpf && { cpf }),
-            ...(enderecoConsultorio && { enderecoConsultorio }),
-          },
-        });
-      }
-
-      const credentials = await prisma.vidaasCredentials.upsert({
-        where: { medicoId: ctx.medico.id },
-        update: {
-          clientId,
-          clientSecret,
-        },
-        create: {
-          medicoId: ctx.medico.id,
-          clientId,
-          clientSecret,
+      await prisma.user.update({
+        where: { id: ctx.medico.id },
+        data: {
+          ...(cpf && { cpf }),
+          ...(enderecoConsultorio && { enderecoConsultorio }),
+          ...(ufCrm && { ufCrm }),
         },
       });
 
       return {
         success: true,
-        clientId: credentials.clientId,
       };
     }),
 
   validarCredenciaisVidaas: medicoProcedure
     .input(
       z.object({
-        clientId: z.string().optional(),
-        clientSecret: z.string().optional(),
         cpf: z.string().optional(),
       })
     )
@@ -530,31 +563,8 @@ export const receitaRouter = router({
         });
       }
 
-      let clientId = input.clientId;
-      let clientSecret = input.clientSecret;
-
-      if (!clientId || !clientSecret || clientSecret === "••••••••") {
-        const credentials = await prisma.vidaasCredentials.findUnique({
-          where: { medicoId: ctx.medico.id },
-        });
-
-        if (!credentials) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Credenciais VIDaaS não configuradas",
-          });
-        }
-
-        clientId = clientId || credentials.clientId;
-        clientSecret = clientSecret === "••••••••" ? credentials.clientSecret : (clientSecret || credentials.clientSecret);
-      }
-
       try {
-        const vidaasService = getVidaasService({
-          clientId,
-          clientSecret,
-        });
-
+        const vidaasService = getVidaasService();
         const resultado = await vidaasService.verificarCertificado(cpf);
 
         return {
@@ -570,35 +580,96 @@ export const receitaRouter = router({
       }
     }),
 
-  buscarCredenciaisVidaas: medicoProcedure.query(async ({ ctx }) => {
-    const [user, credentials] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: ctx.medico.id },
-        select: { cpf: true, enderecoConsultorio: true },
-      }),
-      prisma.vidaasCredentials.findUnique({
-        where: { medicoId: ctx.medico.id },
-      }),
-    ]);
+   buscarCredenciaisVidaas: medicoProcedure.query(async ({ ctx }) => {
+      const [user, medicoClickResult] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: ctx.medico.id },
+          select: { cpf: true, enderecoConsultorio: true, ufCrm: true },
+        }),
+        ctx.medico.clickDoctorId 
+          ? clickQueries.getMedicoById(ctx.medico.clickDoctorId)
+          : Promise.resolve([]),
+      ]);
 
-    if (!credentials) {
+      const medicoClick = medicoClickResult?.[0] || null;
+      const hasEnvCredentials = !!(process.env.VIDAAS_CLIENT_ID && process.env.VIDAAS_CLIENT_SECRET);
+
       return {
-        clientId: "",
-        clientSecret: "",
         cpf: user?.cpf || "",
         enderecoConsultorio: user?.enderecoConsultorio || "",
-        isConfigured: false,
+        ufCrm: user?.ufCrm || "",
+        name: medicoClick?.name || "",
+        crm: medicoClick?.crm || "",
+        isConfigured: hasEnvCredentials,
       };
-    }
+    }),
 
-    return {
-      clientId: credentials.clientId,
-      clientSecret: "••••••••",
-      cpf: user?.cpf || "",
-      enderecoConsultorio: user?.enderecoConsultorio || "",
-      isConfigured: true,
-      createdAt: credentials.createdAt,
-      updatedAt: credentials.updatedAt,
-    };
-  }),
+  verificarReceita: publicProcedure
+    .input(z.object({ receitaId: z.string().uuid() }))
+    .query(async ({ input }) => {
+      const receita = await prisma.receita.findUnique({
+        where: { id: input.receitaId },
+        include: {
+          medico: {
+            select: {
+              name: true,
+              crm: true,
+              ufCrm: true,
+            },
+          },
+          auditorias: {
+            where: { acao: "ASSINADA" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+      if (!receita) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Receita nao encontrada",
+        });
+      }
+
+      let medicoNome = receita.medico?.name || "";
+      let medicoCrm = receita.medico?.crm || "";
+      let medicoUf = receita.medico?.ufCrm || "";
+
+      if (!medicoNome || !medicoCrm) {
+        const user = await prisma.user.findUnique({
+          where: { id: receita.medicoId },
+          select: { name: true, crm: true, ufCrm: true, clickDoctorId: true },
+        });
+
+        if (user) {
+          medicoNome = user.name || medicoNome;
+          medicoCrm = user.crm || medicoCrm;
+          medicoUf = user.ufCrm || medicoUf;
+
+          if (user.clickDoctorId && (!medicoNome || !medicoCrm)) {
+            try {
+              const [medicoClick] = await clickQueries.getMedicoById(user.clickDoctorId);
+              if (medicoClick) {
+                medicoNome = medicoNome || medicoClick.name || "";
+                medicoCrm = medicoCrm || medicoClick.crm || "";
+              }
+            } catch {
+            }
+          }
+        }
+      }
+
+      const dataAssinatura = receita.auditorias[0]?.createdAt || null;
+
+      return {
+        status: receita.status,
+        medicoNome,
+        medicoCrm: medicoCrm ? `${medicoCrm}${medicoUf ? `/${medicoUf}` : ""}` : "",
+        pacienteNome: receita.pacienteNome,
+        dataEmissao: receita.dataEmissao.toISOString(),
+        dataAssinatura: dataAssinatura?.toISOString() || null,
+        dataValidade: receita.dataValidade?.toISOString() || null,
+      };
+    }),
 });

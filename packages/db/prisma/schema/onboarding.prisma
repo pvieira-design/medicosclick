@@ -104,8 +104,8 @@ model CandidatoHistorico {
   de          String?
   para        String?
   detalhes    Json?
-  usuarioId   String
-  usuario     User        @relation("CandidatoHistoricoUsuario", fields: [usuarioId], references: [id])
+  usuarioId   String?
+  usuario     User?       @relation("CandidatoHistoricoUsuario", fields: [usuarioId], references: [id])
   createdAt   DateTime    @default(now())
   
   @@index([candidatoId])

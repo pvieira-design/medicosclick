@@ -3,6 +3,8 @@ import { appRouter } from "@clickmedicos/api/routers/index";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { NextRequest } from "next/server";
 
+export const maxDuration = 120;
+
 function handler(req: NextRequest) {
   return fetchRequestHandler({
     endpoint: "/api/trpc",

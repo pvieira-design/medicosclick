@@ -87,7 +87,7 @@ export default function CandidaturaPage() {
   };
 
   return (
-    <div className="container max-w-3xl py-10">
+    <div className="container max-w-3xl py-10 px-4 md:px-6">
       <Card className="border-none shadow-none bg-transparent">
         <CardHeader className="px-0">
           <CardTitle className="text-3xl font-bold tracking-tight text-slate-900">

@@ -106,7 +106,7 @@ export const onboardingRouter = router({
             fonte: input.comoConheceu,
             comoConheceuOutro: input.comoConheceuOutro || null,
           },
-          usuarioId: "system",
+          usuarioId: null,
         },
       });
 
@@ -728,8 +728,8 @@ export const onboardingRouter = router({
       .input(
         z.object({
           candidatoId: z.string(),
-          dataInicio: z.date(),
-          dataFim: z.date(),
+          dataInicio: z.coerce.date(),
+          dataFim: z.coerce.date(),
         })
       )
       .mutation(async ({ ctx, input }) => {

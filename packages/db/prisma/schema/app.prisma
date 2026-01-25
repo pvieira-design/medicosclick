@@ -331,9 +331,10 @@ model Receita {
    medicoId              String
    medico                User          @relation(fields: [medicoId], references: [id], onDelete: Cascade)
    
-   // Dados do paciente
-   pacienteNome          String
-   pacienteEndereco      String?
+    // Dados do paciente
+    pacienteNome          String
+    pacienteCpf           String?
+    pacienteEndereco      String?
    
    // Dados da prescricao
    produtos              Json          // Array de produtos: [{ nome, concentracao, apresentacao, quantidade, posologia }]

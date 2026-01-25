@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { toast } from "sonner";
 import {
@@ -59,34 +59,56 @@ const STATUS_MAP = {
   CANCELADA: { label: "Cancelada", color: "bg-red-100 text-red-700 border-red-200" },
 };
 
+function openPdfFromDataUrl(dataUrl: string, fileName?: string) {
+  const base64Match = dataUrl.match(/^data:application\/pdf;base64,(.+)$/);
+  if (!base64Match) {
+    window.open(dataUrl, "_blank");
+    return;
+  }
+  
+  const base64 = base64Match[1];
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
 export default function ReceitasPage() {
-  const router = useRouter();
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<string>("all");
-  const [dataInicio, setDataInicio] = useState<string>("");
-  const [dataFim, setDataFim] = useState<string>("");
+   const router = useRouter();
+   const queryClient = useQueryClient();
+   const [page, setPage] = useState(1);
+   const [status, setStatus] = useState<string>("all");
+   const [dataInicio, setDataInicio] = useState<string>("");
+   const [dataFim, setDataFim] = useState<string>("");
 
-  const limit = 20;
+   const limit = 20;
 
-  // @ts-ignore - Ignoring type error due to backend type inference issues
-  const { data, isLoading, isError, refetch } = trpc.receita.listarReceitas.useQuery({
-    page,
-    limit,
-    status: status !== "all" ? (status as any) : undefined,
-    dataInicio: dataInicio ? new Date(dataInicio) : undefined,
-    dataFim: dataFim ? new Date(dataFim) : undefined,
-  });
+   const { data, isLoading, isError } = useQuery(
+     trpc.receita.listarReceitas.queryOptions({
+       page,
+       limit,
+       status: status !== "all" ? (status as any) : undefined,
+       dataInicio: dataInicio ? new Date(dataInicio) : undefined,
+       dataFim: dataFim ? new Date(dataFim) : undefined,
+     })
+   );
 
-  // @ts-ignore - Ignoring type error due to backend type inference issues
-  const duplicarMutation = trpc.receita.duplicarReceita.useMutation({
-    onSuccess: (novaReceita: any) => {
-      toast.success("Receita duplicada com sucesso!");
-      router.push(`/dashboard/receitas/${novaReceita.id}/editar` as any);
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao duplicar receita: ${error.message}`);
-    },
-  });
+   const duplicarMutation = useMutation({
+     ...trpc.receita.duplicarReceita.mutationOptions(),
+     onSuccess: (novaReceita: any) => {
+       toast.success("Receita duplicada com sucesso!");
+       queryClient.invalidateQueries();
+       router.push(`/dashboard/receitas/${novaReceita.id}/editar` as any);
+     },
+     onError: (error: any) => {
+       toast.error(`Erro ao duplicar receita: ${error.message}`);
+     },
+   });
 
   const handleDuplicar = (id: string) => {
     duplicarMutation.mutate({ receitaId: id });
@@ -257,7 +279,7 @@ export default function ReceitasPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-gray-500 hover:text-brand-600 hover:bg-brand-50"
-                              onClick={() => window.open(receita.pdfUrl!, '_blank')}
+                              onClick={() => openPdfFromDataUrl(receita.pdfUrl!)}
                               title="Ver PDF"
                             >
                               <ExternalLink className="w-4 h-4" />
@@ -354,7 +376,7 @@ export default function ReceitasPage() {
                         variant="outline" 
                         size="sm" 
                         className="flex-1 h-8 text-xs"
-                        onClick={() => window.open(receita.pdfUrl!, "_blank")}
+                        onClick={() => openPdfFromDataUrl(receita.pdfUrl!)}
                       >
                         <ExternalLink className="w-3 h-3 mr-1.5" />
                         PDF

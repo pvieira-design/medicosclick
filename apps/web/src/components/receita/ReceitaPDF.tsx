@@ -1,5 +1,6 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
+import QRCode from 'qrcode';
 
 const styles = StyleSheet.create({
   page: {
@@ -59,6 +60,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  patientInfo: {
+    fontSize: 10,
+    marginTop: 2,
+  },
   contentBox: {
     borderLeftWidth: 1,
     borderRightWidth: 1,
@@ -94,19 +99,106 @@ const styles = StyleSheet.create({
     padding: 10,
     marginTop: 0,
   },
-  footerText: {
-    fontSize: 9,
-    textAlign: 'center',
+  signatureContainer: {
+    flexDirection: 'row',
+    marginTop: 15,
+    alignItems: 'flex-start',
+  },
+  badgeContainer: {
+    backgroundColor: '#1e3a5f',
+    borderRadius: 4,
+    padding: 8,
+    width: 140,
+    flexDirection: 'column',
+  },
+  badgeHeader: {
+    fontSize: 6,
+    color: '#ffffff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  signatureLine: {
-    marginTop: 20,
-    marginBottom: 5,
-    borderTopWidth: 1,
-    borderTopColor: '#000000',
-    width: '60%',
-    alignSelf: 'center',
+  badgeTitle: {
+    fontSize: 10,
+    color: '#5bc0de',
+    fontWeight: 'bold',
+    marginBottom: 6,
   },
+  badgeDivider: {
+    height: 1,
+    backgroundColor: '#ffffff',
+    opacity: 0.3,
+    marginVertical: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeLogoSection: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  badgeLogoText: {
+    fontSize: 7,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  badgeLogoSubtext: {
+    fontSize: 5,
+    color: '#ffffff',
+  },
+  badgeLegalSection: {
+    flex: 1,
+  },
+  badgeLegalText: {
+    fontSize: 5,
+    color: '#ffffff',
+    lineHeight: 1.3,
+  },
+  badgeLegalBold: {
+    fontSize: 6,
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  verificationTextContainer: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+   verificationLine: {
+     fontSize: 7,
+     color: '#000000',
+     marginBottom: 3,
+     lineHeight: 1.5,
+   },
+   verificationLineBold: {
+     fontSize: 7,
+     color: '#000000',
+     fontWeight: 'bold',
+     marginBottom: 3,
+   },
+   verificationUrl: {
+     fontSize: 6,
+     color: '#0066cc',
+     marginTop: 2,
+     marginBottom: 1,
+   },
+  qrSection: {
+    alignItems: 'center',
+    width: 70,
+  },
+  qrCode: {
+    width: 60,
+    height: 60,
+  },
+   serialCode: {
+     fontSize: 6,
+     fontFamily: 'Courier',
+     marginTop: 4,
+     textAlign: 'center',
+     color: '#000000',
+     backgroundColor: '#ffffff',
+   },
 });
 
 export interface ReceitaData {
@@ -118,6 +210,7 @@ export interface ReceitaData {
   };
   paciente: {
     nome: string;
+    cpf?: string;
   };
   produtos: Array<{
     nome: string;
@@ -126,14 +219,37 @@ export interface ReceitaData {
     posologia: string;
   }>;
   dataEmissao: Date;
+  assinatura?: {
+    receitaId: string;
+    dataAssinatura: Date;
+    certificadoTitular: string;
+    qrCodeDataUrl?: string;
+  };
 }
 
 interface ReceitaPDFProps {
   data: ReceitaData;
 }
 
+function generateSerialCode(receitaId: string): string {
+  const hash = receitaId.replace(/-/g, '').slice(0, 8).toUpperCase();
+  return `CLK-${hash}`;
+}
+
 const ReceitaPDF: React.FC<ReceitaPDFProps> = ({ data }) => {
   const formattedDate = new Date(data.dataEmissao).toLocaleDateString('pt-BR');
+  const assinaturaDate = data.assinatura?.dataAssinatura 
+    ? new Date(data.assinatura.dataAssinatura).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+  const serialCode = data.assinatura?.receitaId 
+    ? generateSerialCode(data.assinatura.receitaId)
+    : null;
   
   return (
     <Document>
@@ -157,6 +273,9 @@ const ReceitaPDF: React.FC<ReceitaPDFProps> = ({ data }) => {
 
         <View style={styles.patientBox}>
           <Text style={styles.patientText}>Paciente: {data.paciente.nome}</Text>
+          {data.paciente.cpf && (
+            <Text style={styles.patientInfo}>CPF: {data.paciente.cpf}</Text>
+          )}
         </View>
 
         <View style={styles.contentBox}>
@@ -165,7 +284,7 @@ const ReceitaPDF: React.FC<ReceitaPDFProps> = ({ data }) => {
           {data.produtos.map((prod, index) => (
             <View key={index} style={styles.productContainer}>
               <Text style={styles.productLine}>
-                {index + 1} - {prod.nome} - {prod.concentracao} ({prod.quantidade})
+                {index + 1} - {prod.nome} - {prod.concentracao} ({prod.quantidade} {prod.quantidade === 1 ? 'unidade' : 'unidades'})
               </Text>
               <Text style={styles.posologia}>
                 {prod.posologia}
@@ -175,19 +294,96 @@ const ReceitaPDF: React.FC<ReceitaPDFProps> = ({ data }) => {
         </View>
 
         <View style={styles.footerBox}>
-          <Text style={styles.footerText}>Assinado digitalmente por Dr. {data.medico.nome}</Text>
-          <Text style={styles.footerText}>Data: {formattedDate} {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</Text>
-          <Text style={styles.footerText}>MP nº 2.200-2/2001 - ICP-Brasil</Text>
-          <Text style={styles.footerText}>Resolução CFM nº 2.299/2021</Text>
+          {data.assinatura && (
+            <View style={styles.signatureContainer}>
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badgeHeader}>ASSINATURA ELETRÔNICA</Text>
+                <Text style={styles.badgeTitle}>QUALIFICADA</Text>
+                <View style={styles.badgeDivider} />
+                <View style={styles.badgeRow}>
+                  <View style={styles.badgeLogoSection}>
+                    <Text style={styles.badgeLogoText}>ICP</Text>
+                    <Text style={styles.badgeLogoSubtext}>Brasil</Text>
+                  </View>
+                  <View style={styles.badgeLegalSection}>
+                    <Text style={styles.badgeLegalText}>Conforme</Text>
+                     <Text style={styles.badgeLegalBold}>MP 2.200-2/2001</Text>
+                    <Text style={styles.badgeLegalText}>e Lei 14.063/20</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.verificationTextContainer}>
+                <Text style={styles.verificationLineBold}>
+                  Assinado por: {data.assinatura.certificadoTitular}
+                </Text>
+                <Text style={styles.verificationLine}>
+                  Data/Hora: {assinaturaDate}
+                </Text>
+                <Text style={styles.verificationLine}>
+                  MP nº 2.200-2/2001 - ICP-Brasil
+                </Text>
+                <Text style={styles.verificationLine}>
+                  Resoluções CFM nº 2.299/2021 e 2.381/2024
+                </Text>
+                 <Text style={styles.verificationUrl}>
+                   Validar assinatura: validar.iti.gov.br
+                 </Text>
+                 <Text style={styles.verificationUrl}>
+                   Verificar receita: clickmedicos.com.br/verificar/{data.assinatura.receitaId}
+                 </Text>
+              </View>
+
+              {data.assinatura.qrCodeDataUrl && (
+                <View style={styles.qrSection}>
+                  <Image style={styles.qrCode} src={data.assinatura.qrCodeDataUrl} />
+                  <Text style={styles.serialCode}>{serialCode}</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </Page>
     </Document>
   );
 };
 
+function getBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    return process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://clickmedicos.com.br';
+}
+
+async function gerarQRCode(receitaId: string): Promise<string> {
+  const baseUrl = getBaseUrl();
+  const verificationUrl = `${baseUrl}/verificar/${receitaId}`;
+  return await QRCode.toDataURL(verificationUrl, {
+    width: 150,
+    margin: 1,
+    color: {
+      dark: '#000000',
+      light: '#ffffff',
+    },
+  });
+}
+
 export const gerarReceitaPdfBase64 = async (dados: ReceitaData): Promise<string> => {
   try {
-    const blob = await pdf(<ReceitaPDF data={dados} />).toBlob();
+    let dadosComQR = dados;
+    
+    if (dados.assinatura?.receitaId) {
+      const qrCodeDataUrl = await gerarQRCode(dados.assinatura.receitaId);
+      dadosComQR = {
+        ...dados,
+        assinatura: {
+          ...dados.assinatura,
+          qrCodeDataUrl,
+        },
+      };
+    }
+    
+    const blob = await pdf(<ReceitaPDF data={dadosComQR} />).toBlob();
     
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
