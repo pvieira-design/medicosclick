@@ -268,24 +268,117 @@ model Auditoria {
 // ========== NOTIFICACOES IN-APP ==========
 
 model Notificacao {
-  id              String          @id @default(uuid())
-  
-  usuarioId       String
-  usuario         User            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  
-  tipo            NotificacaoTipo
-  titulo          String
-  mensagem        String
-  lida            Boolean         @default(false)
-  
-  // Referencia tipada ao item relacionado
-  referenciaId    String?         // ID da Solicitacao ou CancelamentoEmergencial
-  referenciaTipo  String?         // "solicitacao" | "cancelamento"
-  
-  createdAt       DateTime        @default(now())
+   id              String          @id @default(uuid())
+   
+   usuarioId       String
+   usuario         User            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+   
+   tipo            NotificacaoTipo
+   titulo          String
+   mensagem        String
+   lida            Boolean         @default(false)
+   
+   // Referencia tipada ao item relacionado
+   referenciaId    String?         // ID da Solicitacao ou CancelamentoEmergencial
+   referenciaTipo  String?         // "solicitacao" | "cancelamento"
+   
+   createdAt       DateTime        @default(now())
+ 
+   @@index([usuarioId, lida])
+   @@index([usuarioId, createdAt])
+   @@index([createdAt])
+   @@map("notificacao")
+}
 
-  @@index([usuarioId, lida])
-  @@index([usuarioId, createdAt])
-  @@index([createdAt])
-  @@map("notificacao")
+// ========== RECEITA MEDICA - ENUMS ==========
+
+enum ReceitaStatus {
+   RASCUNHO
+   PENDENTE_ASSINATURA
+   ASSINADA
+   CANCELADA
+}
+
+// ========== RECEITA MEDICA - CREDENCIAIS VIDAAS ==========
+
+model VidaasCredentials {
+   id            String   @id @default(uuid())
+   
+   medicoId      String   @unique
+   medico        User     @relation(fields: [medicoId], references: [id], onDelete: Cascade)
+   
+   clientId      String
+   clientSecret  String   @db.Text
+   
+   createdAt     DateTime @default(now())
+   updatedAt     DateTime @updatedAt
+   
+   @@index([medicoId])
+   @@map("vidaas_credentials")
+}
+
+// ========== RECEITA MEDICA - RECEITA ==========
+
+model Receita {
+   id                    String        @id @default(uuid())
+   
+   status                ReceitaStatus @default(RASCUNHO)
+   
+   // Referencia a consulta no Click
+   consultaClickId       Int?          // ID da consulta na tabela consultings do Click
+   
+   // Medico prescritor
+   medicoId              String
+   medico                User          @relation(fields: [medicoId], references: [id], onDelete: Cascade)
+   
+   // Dados do paciente
+   pacienteNome          String
+   pacienteEndereco      String?
+   
+   // Dados da prescricao
+   produtos              Json          // Array de produtos: [{ nome, concentracao, apresentacao, quantidade, posologia }]
+   posologia             String        @db.Text
+   alertas               String?       @db.Text
+   observacoes           String?       @db.Text
+   
+   // Datas
+   dataEmissao           DateTime      @default(now())
+   dataValidade          DateTime?     // 6 meses a partir da emissao
+   
+   // PDFs
+   pdfUrl                String?       // URL do PDF assinado
+   pdfUrlNaoAssinado     String?       // URL do PDF antes da assinatura
+   
+   createdAt             DateTime      @default(now())
+   updatedAt             DateTime      @updatedAt
+   
+   // Relacoes
+   auditorias            ReceitaAuditoria[]
+   
+   @@index([medicoId])
+   @@index([status])
+   @@index([consultaClickId])
+   @@index([createdAt])
+   @@map("receita")
+}
+
+// ========== RECEITA MEDICA - AUDITORIA ==========
+
+model ReceitaAuditoria {
+   id        String   @id @default(uuid())
+   
+   receitaId String
+   receita   Receita  @relation(fields: [receitaId], references: [id], onDelete: Cascade)
+   
+   acao      String   // "CRIADA", "ASSINADA", "CANCELADA", etc
+   
+   medicoId  String
+   medico    User     @relation(fields: [medicoId], references: [id], onDelete: Cascade)
+   
+   createdAt DateTime @default(now())
+   
+   @@index([receitaId])
+   @@index([medicoId])
+   @@index([createdAt])
+   @@map("receita_auditoria")
 }
