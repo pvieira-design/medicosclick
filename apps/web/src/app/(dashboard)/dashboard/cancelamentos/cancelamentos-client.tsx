@@ -21,6 +21,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -138,8 +144,10 @@ function SelectableSlotsGrid({
         <Loader2 className="h-6 w-6 animate-spin mb-2" />
         <span className="text-xs">Carregando agenda atual...</span>
       </div>
-    );
-  }
+  );
+}
+
+
 
   return (
     <div className="space-y-4">
@@ -221,7 +229,92 @@ function SelectableSlotsGrid({
                         onClick={() => {
                           if (requested) {
                             onToggleSlot({ diaSemana: day as DiaSemana, horario: time });
-                          }
+}
+
+function CancelamentosTable({ 
+  data, 
+  isLoading, 
+  page, 
+  setPage 
+}: { 
+  data: any; 
+  isLoading: boolean; 
+  page: number; 
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  return (
+    <>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-4 border-slate-200 opacity-30"></div>
+            <div className="absolute top-0 h-12 w-12 rounded-full border-4 border-rose-500 border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-muted-foreground animate-pulse">Carregando solicitações...</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                <TableRow>
+                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[250px]">Médico</TableHead>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead>Strikes Atuais</TableHead>
+                  <TableHead>Afeta</TableHead>
+                  <TableHead>Solicitado em</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.cancelamentos.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <CheckCircle2 className="h-8 w-8 text-green-500/50" />
+                        <p>Nenhuma solicitação encontrada.</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (data?.cancelamentos as any[])?.map((item) => (
+                    <CancelamentoRow key={item.id} cancelamento={item} />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {(data?.pages ?? 0) > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="px-4 text-sm font-medium text-muted-foreground">
+                    Página {page} de {data?.pages ?? 1}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setPage(p => Math.min(data?.pages ?? 1, p + 1))}
+                    className={page === (data?.pages ?? 1) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
                         }}
                       >
                         {content}
@@ -399,113 +492,115 @@ function CancelamentoRow({ cancelamento }: { cancelamento: any }) {
           </div>
         </TableCell>
         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-          <div className="flex justify-end gap-2">
-            <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-              <DialogTrigger className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive")}>
-                  <XCircle className="mr-1 h-3 w-3" /> Rejeitar
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Rejeitar Solicitação</DialogTitle>
-                  <DialogDescription>
-                    O médico será notificado que o cancelamento não foi aceito.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <Label htmlFor="reason" className="mb-2 block">Motivo da rejeição</Label>
-                  <Textarea 
-                    id="reason" 
-                    placeholder="Explique por que o cancelamento não pode ser aceito..." 
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                </div>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleReject}
-                    disabled={rejectMutation.isPending || !rejectionReason.trim()}
-                  >
-                    {rejectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Rejeitar Solicitação
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-              <DialogTrigger className={cn(buttonVariants({ variant: "default", size: "sm" }), "h-8 bg-brand-600 hover:bg-brand-700 text-white shadow-sm")}>
-                  <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-rose-600">
-                    <ShieldAlert className="h-5 w-5" />
-                    Confirmar Aprovação
-                  </DialogTitle>
-                  <DialogDescription>
-                    Revise os horários selecionados para cancelamento.
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="py-4 space-y-4">
-                  {aplicarStrike && (
-                    <Alert variant="destructive" className="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/20 dark:border-rose-900">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Ação com Penalidade</AlertTitle>
-                      <AlertDescription>
-                        Um <strong>Strike</strong> será adicionado ao perfil do médico.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="flex items-center space-x-3 py-2">
-                    <Checkbox
-                      id="aplicar-strike"
-                      checked={aplicarStrike}
-                      onCheckedChange={(checked) => setAplicarStrike(checked === true)}
+          {cancelamento.status === "pendente" && (
+            <div className="flex justify-end gap-2">
+              <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+                <DialogTrigger className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive")}>
+                    <XCircle className="mr-1 h-3 w-3" /> Rejeitar
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Rejeitar Solicitação</DialogTitle>
+                    <DialogDescription>
+                      O médico será notificado que o cancelamento não foi aceito.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <Label htmlFor="reason" className="mb-2 block">Motivo da rejeição</Label>
+                    <Textarea 
+                      id="reason" 
+                      placeholder="Explique por que o cancelamento não pode ser aceito..." 
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      className="min-h-[100px]"
                     />
-                    <Label htmlFor="aplicar-strike" className="text-sm font-medium cursor-pointer">
-                      Aplicar Strike ao Médico
-                    </Label>
                   </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setRejectDialogOpen(false)}>Cancelar</Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleReject}
+                      disabled={rejectMutation.isPending || !rejectionReason.trim()}
+                    >
+                      {rejectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Rejeitar Solicitação
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
-                  <div className="flex gap-4 text-sm border-t pt-4">
-                    <div className="flex items-center gap-2 text-emerald-600">
-                      <Check className="h-4 w-4" />
-                      <span><strong>{selectedCount}</strong> serão cancelados</span>
+              <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+                <DialogTrigger className={cn(buttonVariants({ variant: "default", size: "sm" }), "h-8 bg-brand-600 hover:bg-brand-700 text-white shadow-sm")}>
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Aprovar
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-rose-600">
+                      <ShieldAlert className="h-5 w-5" />
+                      Confirmar Aprovação
+                    </DialogTitle>
+                    <DialogDescription>
+                      Revise os horários selecionados para cancelamento.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="py-4 space-y-4">
+                    {aplicarStrike && (
+                      <Alert variant="destructive" className="bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/20 dark:border-rose-900">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Ação com Penalidade</AlertTitle>
+                        <AlertDescription>
+                          Um <strong>Strike</strong> será adicionado ao perfil do médico.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <div className="flex items-center space-x-3 py-2">
+                      <Checkbox
+                        id="aplicar-strike"
+                        checked={aplicarStrike}
+                        onCheckedChange={(checked) => setAplicarStrike(checked === true)}
+                      />
+                      <Label htmlFor="aplicar-strike" className="text-sm font-medium cursor-pointer">
+                        Aplicar Strike ao Médico
+                      </Label>
                     </div>
-                    {rejectedCount > 0 && (
-                      <div className="flex items-center gap-2 text-destructive">
-                        <X className="h-4 w-4" />
-                        <span><strong>{rejectedCount}</strong> serão mantidos</span>
+
+                    <div className="flex gap-4 text-sm border-t pt-4">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <Check className="h-4 w-4" />
+                        <span><strong>{selectedCount}</strong> serão cancelados</span>
+                      </div>
+                      {rejectedCount > 0 && (
+                        <div className="flex items-center gap-2 text-destructive">
+                          <X className="h-4 w-4" />
+                          <span><strong>{rejectedCount}</strong> serão mantidos</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedCount === 0 && (
+                      <div className="text-amber-600 text-sm bg-amber-50 dark:bg-amber-950/30 p-2 rounded">
+                        Nenhum horário selecionado. Selecione ao menos um para aprovar o cancelamento.
                       </div>
                     )}
                   </div>
-                  
-                  {selectedCount === 0 && (
-                    <div className="text-amber-600 text-sm bg-amber-50 dark:bg-amber-950/30 p-2 rounded">
-                      Nenhum horário selecionado. Selecione ao menos um para aprovar o cancelamento.
-                    </div>
-                  )}
-                </div>
 
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setApproveDialogOpen(false)}>Cancelar</Button>
-                  <Button 
-                    onClick={handleApprove}
-                    variant={aplicarStrike ? "destructive" : "default"}
-                    disabled={approveMutation.isPending || selectedCount === 0}
-                  >
-                    {approveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {aplicarStrike ? "Confirmar e Aplicar Strike" : "Confirmar sem Strike"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+                  <DialogFooter>
+                    <Button variant="ghost" onClick={() => setApproveDialogOpen(false)}>Cancelar</Button>
+                    <Button 
+                      onClick={handleApprove}
+                      variant={aplicarStrike ? "destructive" : "default"}
+                      disabled={approveMutation.isPending || selectedCount === 0}
+                    >
+                      {approveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {aplicarStrike ? "Confirmar e Aplicar Strike" : "Confirmar sem Strike"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </TableCell>
       </TableRow>
       
@@ -559,12 +654,18 @@ function CancelamentoRow({ cancelamento }: { cancelamento: any }) {
 
 export default function CancelamentosClient() {
   const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<"pendente" | "aprovado" | "rejeitado">("pendente");
   
   const { data, isLoading } = useQuery(trpc.aprovacoes.listarCancelamentos.queryOptions({
-    status: "pendente",
+    status: activeTab,
     page,
     perPage: 10,
   }));
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as "pendente" | "aprovado" | "rejeitado");
+    setPage(1);
+  };
 
   return (
     <div className="container mx-auto py-8 space-y-8 animate-in fade-in duration-500">
@@ -579,6 +680,66 @@ export default function CancelamentosClient() {
         </p>
       </div>
 
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-3 mb-8">
+          <TabsTrigger value="pendente" className="gap-2">
+            <Clock className="h-4 w-4" />
+            Pendentes
+          </TabsTrigger>
+          <TabsTrigger value="aprovado" className="gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            Aprovados
+          </TabsTrigger>
+          <TabsTrigger value="rejeitado" className="gap-2">
+            <XCircle className="h-4 w-4" />
+            Rejeitados
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pendente" className="mt-0">
+          <CancelamentosTable 
+            data={data} 
+            isLoading={isLoading} 
+            page={page} 
+            setPage={setPage} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="aprovado" className="mt-0">
+          <CancelamentosTable 
+            data={data} 
+            isLoading={isLoading} 
+            page={page} 
+            setPage={setPage} 
+          />
+        </TabsContent>
+        
+        <TabsContent value="rejeitado" className="mt-0">
+          <CancelamentosTable 
+            data={data} 
+            isLoading={isLoading} 
+            page={page} 
+            setPage={setPage} 
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function CancelamentosTable({ 
+  data, 
+  isLoading, 
+  page, 
+  setPage 
+}: { 
+  data: any; 
+  isLoading: boolean; 
+  page: number; 
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  return (
+    <>
       {isLoading ? (
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <div className="relative">
@@ -608,7 +769,7 @@ export default function CancelamentosClient() {
                     <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <CheckCircle2 className="h-8 w-8 text-green-500/50" />
-                        <p>Nenhuma solicitação pendente.</p>
+                        <p>Nenhuma solicitação encontrada.</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -647,6 +808,6 @@ export default function CancelamentosClient() {
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
