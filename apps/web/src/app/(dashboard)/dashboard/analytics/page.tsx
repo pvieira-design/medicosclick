@@ -9,6 +9,8 @@ import { useAnalyticsFilters, type DateRangeValue } from "@/hooks/useAnalyticsFi
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart01 } from "@/components/untitled/application/charts/bar-charts";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SatisfacaoTab } from "./components/SatisfacaoTab";
 
 interface MetricCardProps {
   icon: FC<{ className?: string }>;
@@ -34,7 +36,7 @@ const variantStyles = {
   },
 };
 
-function MetricCard({ 
+export function MetricCard({ 
   icon: Icon, 
   title, 
   subtitle, 
@@ -115,9 +117,7 @@ function MetricCard({
   );
 }
 
-function AnalyticsContent() {
-  const { dateRangeValue, dateRangeForApi, setDateRange } = useAnalyticsFilters();
-
+function ConsultasTabContent({ dateRangeForApi }: { dateRangeForApi: { dataInicio: string; dataFim: string } }) {
   const { data: agendadas, isLoading: isLoadingAgendadas } = useQuery(
     trpc.analytics.consultasAgendadas.queryOptions({
       dataInicio: dateRangeForApi.dataInicio,
@@ -153,27 +153,8 @@ function AnalyticsContent() {
     })
   );
 
-  const handleDateChange = (range: DateRangeValue | null) => {
-    if (range) {
-      setDateRange(range);
-    }
-  };
-
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">Analytics</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Metricas e indicadores de performance
-          </p>
-        </div>
-        <DateRangePicker 
-          value={dateRangeValue} 
-          onChange={handleDateChange}
-        />
-      </div>
-
+    <div className="space-y-8 animate-in fade-in duration-500 mt-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {isLoadingAgendadas ? (
           <Skeleton className="h-[260px] rounded-xl" />
@@ -352,6 +333,46 @@ function AnalyticsContent() {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function AnalyticsContent() {
+  const { dateRangeValue, dateRangeForApi, setDateRange } = useAnalyticsFilters();
+
+  const handleDateChange = (range: DateRangeValue | null) => {
+    if (range) {
+      setDateRange(range);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">Analytics</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Metricas e indicadores de performance
+          </p>
+        </div>
+        <DateRangePicker 
+          value={dateRangeValue} 
+          onChange={handleDateChange}
+        />
+      </div>
+
+      <Tabs defaultValue="consultas">
+        <TabsList>
+          <TabsTrigger value="consultas">Consultas</TabsTrigger>
+          <TabsTrigger value="satisfacao">Satisfação</TabsTrigger>
+        </TabsList>
+        <TabsContent value="consultas">
+          <ConsultasTabContent dateRangeForApi={dateRangeForApi} />
+        </TabsContent>
+        <TabsContent value="satisfacao">
+          <SatisfacaoTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
