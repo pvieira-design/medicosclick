@@ -156,6 +156,75 @@ function StatsCard({ title, value, icon, loading }: { title: string; value?: num
   );
 }
 
+function ResetPasswordDialog({ 
+  user, 
+  open, 
+  onOpenChange 
+}: { 
+  user: { id: string; name: string } | null; 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+}) {
+  const [password, setPassword] = useState("");
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (input: { userId: string; novaSenha: string }) =>
+      trpcClient.usuarios.resetarSenha.mutate(input),
+    onSuccess: () => {
+      toast.success("Senha resetada com sucesso");
+      onOpenChange(false);
+      setPassword("");
+      queryClient.invalidateQueries();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao resetar senha: ${error.message}`);
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (user && password.length >= 6) {
+      mutation.mutate({ userId: user.id, novaSenha: password });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Resetar Senha</DialogTitle>
+          <DialogDescription>
+            Defina uma nova senha temporária para <b>{user?.name}</b>.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="new-password">Nova Senha</Label>
+            <Input 
+              id="new-password" 
+              type="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              minLength={6}
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" className="bg-brand-600 hover:bg-brand-700" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Nova Senha
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 type FaixaType = "P1" | "P2" | "P3" | "P4" | "P5";
 
 function UsersTable({ type }: { type: "medico" | "staff" }) {
@@ -163,6 +232,7 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
   const [search, setSearch] = useState("");
   const [faixaFilter, setFaixaFilter] = useState<string>("all");
   const [staffTypeFilter, setStaffTypeFilter] = useState<"admin" | "diretor" | "atendente">("admin");
+  const [resetUser, setResetUser] = useState<{id: string, name: string} | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -312,6 +382,9 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
                       <DropdownMenuItem onClick={() => toggleStatusMutation.mutate({ userId: user.id, ativo: !user.ativo })}>
                         {user.ativo ? "Desativar Usuário" : "Ativar Usuário"}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setResetUser({ id: user.id, name: user.name })}>
+                        Resetar Senha
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {type === "medico" && (
                         <>
@@ -334,6 +407,12 @@ function UsersTable({ type }: { type: "medico" | "staff" }) {
           </TableBody>
         </Table>
       </div>
+
+      <ResetPasswordDialog 
+        user={resetUser} 
+        open={!!resetUser} 
+        onOpenChange={(open) => !open && setResetUser(null)} 
+      />
 
       <Pagination>
         <PaginationContent>

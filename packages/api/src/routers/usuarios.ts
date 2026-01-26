@@ -4,6 +4,7 @@ import prisma from "@clickmedicos/db";
 import { clickQueries } from "@clickmedicos/db/click-replica";
 import { router, adminProcedure, staffProcedure } from "../index";
 import { hashPassword } from "better-auth/crypto";
+import { auth } from "@clickmedicos/auth";
 
 const UserTipoEnum = z.enum(["super_admin", "admin", "diretor", "atendente", "medico"]);
 const FaixaEnum = z.enum(["P1", "P2", "P3", "P4", "P5"]);
@@ -461,6 +462,67 @@ export const usuariosRouter = router({
         where: { id: input.userId },
         data: { strikes: 0 },
       });
+    }),
+
+  resetarSenha: adminProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        novaSenha: z.string().min(6),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const user = await prisma.user.findUnique({
+        where: { id: input.userId },
+        include: { accounts: { where: { providerId: "credential" } } },
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Usuario nao encontrado",
+        });
+      }
+
+      if (user.accounts.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Usuario nao possui conta de credenciais (email/senha)",
+        });
+      }
+
+      try {
+        await auth.api.setUserPassword({
+          body: {
+            userId: input.userId,
+            newPassword: input.novaSenha,
+          },
+          headers: ctx.headers,
+        });
+      } catch (error) {
+        const hashedPassword = await hashPassword(input.novaSenha);
+        await prisma.account.updateMany({
+          where: { userId: input.userId, providerId: "credential" },
+          data: { password: hashedPassword },
+        });
+      }
+
+      await prisma.auditoria.create({
+        data: {
+          usuarioId: ctx.user.id,
+          usuarioNome: ctx.user.name,
+          acao: "RESETAR_SENHA_ADMIN",
+          entidade: "user",
+          entidadeId: input.userId,
+          dadosDepois: { 
+            resetadoPor: ctx.user.name,
+            alvoNome: user.name,
+            alvoEmail: user.email
+          },
+        },
+      });
+
+      return { success: true };
     }),
 
   alterarSenha: staffProcedure
