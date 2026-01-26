@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { trpc, trpcClient } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
+
+const ALLOWED_EMAIL = "isabelaururahy@live.com";
 
 const UF_OPTIONS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
 
@@ -25,10 +28,23 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function VidaasConfigPage() {
+  const router = useRouter();
   const [ufCrmValue, setUfCrmValue] = useState<string>("");
   const [validationResult, setValidationResult] = useState<{ checked: boolean; valid: boolean; message: string }>({ checked: false, valid: false, message: "" });
 
-  const { data: credentials, isLoading, refetch } = useQuery(trpc.receita.buscarCredenciaisVidaas.queryOptions());
+  const { data: me, isLoading: isLoadingMe } = useQuery(trpc.me.queryOptions());
+  const { data: credentials, isLoading: isLoadingCredentials, refetch } = useQuery(trpc.receita.buscarCredenciaisVidaas.queryOptions());
+  
+  const userEmail = me?.user?.email;
+  const hasAccess = userEmail === ALLOWED_EMAIL;
+  
+  useEffect(() => {
+    if (!isLoadingMe && !hasAccess) {
+      router.replace("/dashboard");
+    }
+  }, [isLoadingMe, hasAccess, router]);
+  
+  const isLoading = isLoadingMe || isLoadingCredentials;
   
   const saveMutation = useMutation({
     mutationFn: (values: FormValues) => trpcClient.receita.salvarCredenciaisVidaas.mutate(values),
@@ -93,13 +109,17 @@ export default function VidaasConfigPage() {
       </div>
     );
   }
+  
+  if (!hasAccess) {
+    return null;
+  }
 
   return (
     <div className="container max-w-2xl py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Certificado Digital</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Informações Pessoais</h1>
         <p className="text-gray-500 mt-2">
-          Configure seus dados para assinatura digital de receitas médicas.
+          Configure seus dados para emissão e assinatura digital de receitas médicas.
         </p>
       </div>
 

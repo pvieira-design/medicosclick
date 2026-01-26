@@ -90,10 +90,16 @@ export function Sidebar({ className }: SidebarProps) {
         { title: "Solicitar Abertura", icon: PlusCircle, href: "/dashboard/solicitar" },
         { title: "Fechar Horários", icon: MinusCircle, href: "/dashboard/fechar" },
         { title: "Cancelar Emergencial", icon: Siren, href: "/dashboard/cancelamento-emergencial" },
-        { title: "Minhas Solicitações", icon: FileText, href: "/dashboard/solicitacoes" },
-        { title: "Receitas", icon: FileText, href: "/dashboard/receitas" },
-        { title: "Certificado Digital", icon: Shield, href: "/dashboard/configuracoes/vidaas" }
+        { title: "Minhas Solicitações", icon: FileText, href: "/dashboard/solicitacoes" }
       )
+      
+      // Receitas apenas para médica específica (beta)
+      if (userEmail === "isabelaururahy@live.com") {
+        items.push(
+          { title: "Receitas", icon: FileText, href: "/dashboard/receitas" },
+          { title: "Informações Pessoais", icon: User, href: "/dashboard/configuracoes/vidaas" }
+        )
+      }
     }
 
     const isStaff = ["atendente", "diretor", "admin", "super_admin"].includes(role)
