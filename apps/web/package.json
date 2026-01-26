@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3005",
-    "build": "prisma db push --schema=../../packages/db/prisma/schema --accept-data-loss --skip-generate && prisma generate --schema=../../packages/db/prisma/schema && next build",
+    "build": "prisma db push --schema=../../packages/db/prisma/schema --accept-data-loss && prisma generate --schema=../../packages/db/prisma/schema && next build",
     "start": "next start",
     "postinstall": "prisma generate --schema=../../packages/db/prisma/schema"
   },
