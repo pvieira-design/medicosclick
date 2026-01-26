@@ -12,7 +12,7 @@ ClickMedicos e um sistema de gestao de horarios medicos integrado ao Click CRM. 
 - **Backend**: tRPC + Prisma ORM
 - **Bancos**: PostgreSQL (local) + Click Replica (externo, somente leitura)
 - **Auth**: Better Auth
-- **Monorepo**: Turborepo + pnpm
+- **Monorepo**: npm workspaces
 
 ### Estrutura do Projeto
 
@@ -291,14 +291,13 @@ Documentacao completa: `docs/FRONTEND_GUIDELINES.md`
 
 ```bash
 # Desenvolvimento
-pnpm dev                    # Inicia todos os apps
-pnpm build                  # Build de producao
-pnpm check-types            # Verificar tipos TypeScript
+npm run dev                 # Inicia todos os apps
+npm run build               # Build de producao
 
 # Banco de Dados
-pnpm db:push                # Aplicar schema ao banco
-pnpm db:studio              # Abrir Prisma Studio
-pnpm db:generate            # Gerar cliente Prisma
+npm run db:push             # Aplicar schema ao banco
+npm run db:studio           # Abrir Prisma Studio
+npm run db:generate         # Gerar cliente Prisma
 ```
 
 ---

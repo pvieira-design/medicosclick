@@ -53,6 +53,7 @@ enum NotificacaoTipo {
   cancelamento_criado
   cancelamento_aprovado
   cancelamento_rejeitado
+  satisfacao_pendente
 }
 
 // ========== OBSERVACOES DO MEDICO ==========

@@ -793,6 +793,23 @@ export const clickQueries = {
       [dataInicio, dataFim]
     ),
 
+  getTotalReceitasEnviadas: (dataInicio: string, dataFim: string, usarFiltroHora: boolean = false) =>
+    query<{ total_receitas: number }>(
+      `SELECT COUNT(DISTINCT mp.id)::int AS total_receitas
+       FROM consultings c
+       JOIN medical_prescriptions mp ON mp.consulting_id = c.id
+       WHERE c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo' >= $1::date
+         AND c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo' < ($2::date + INTERVAL '1 day')
+         AND c.completed = TRUE
+         AND c.status NOT IN ('preconsulting', 'cancelled')
+         AND (c.event_id NOT LIKE 'external%' OR c.event_id IS NULL)
+         AND (
+           $3::boolean = false 
+           OR (c.start::timestamptz AT TIME ZONE 'America/Sao_Paulo')::time <= (NOW() AT TIME ZONE 'America/Sao_Paulo')::time
+         )`,
+      [dataInicio, dataFim, usarFiltroHora]
+    ),
+
   // ============================================================================
   // PRIORIDADES DOS MÉDICOS
   // ============================================================================

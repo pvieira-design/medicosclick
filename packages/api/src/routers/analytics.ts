@@ -318,4 +318,64 @@ export const analyticsRouter = router({
         value: item.total,
       }));
     }),
+
+  receitasEnviadas: staffProcedure
+    .input(
+      z.object({
+        dataInicio: z.string(),
+        dataFim: z.string(),
+      })
+    )
+    .query(async ({ input }) => {
+      const [resultadoAtual] = await clickQueries.getTotalReceitasEnviadas(
+        input.dataInicio,
+        input.dataFim,
+        true
+      );
+
+      const periodoAnterior = calcularPeriodoAnterior(input.dataInicio, input.dataFim);
+      const [resultadoAnterior] = await clickQueries.getTotalReceitasEnviadas(
+        periodoAnterior.dataInicio,
+        periodoAnterior.dataFim,
+        true
+      );
+
+      const semanaAnterior = calcularSemanaAnterior(input.dataInicio, input.dataFim);
+      const [resultadoSemana] = await clickQueries.getTotalReceitasEnviadas(
+        semanaAnterior.dataInicio,
+        semanaAnterior.dataFim,
+        true
+      );
+
+      const ultimas4Semanas = calcularUltimas4Semanas(input.dataInicio, input.dataFim);
+      const resultados4Semanas = await Promise.all(
+        ultimas4Semanas.map((p) =>
+          clickQueries.getTotalReceitasEnviadas(p.dataInicio, p.dataFim, true)
+        )
+      );
+      const soma4Semanas = resultados4Semanas.reduce((acc: number, [r]: any) => acc + (r?.total_receitas ?? 0), 0);
+      const media4Semanas = soma4Semanas / 4;
+
+      const total = resultadoAtual?.total_receitas ?? 0;
+      const totalAnterior = resultadoAnterior?.total_receitas ?? 0;
+      const totalSemana = resultadoSemana?.total_receitas ?? 0;
+      const variacao = calcularVariacao(total, totalAnterior);
+      const variacaoSemana = calcularVariacao(total, totalSemana);
+      const variacaoMedia = calcularVariacao(total, media4Semanas);
+
+      return {
+        total,
+        totalAnterior,
+        totalSemana,
+        media4Semanas: Math.round(media4Semanas),
+        variacao,
+        variacaoSemana,
+        variacaoMedia,
+        periodo: {
+          atual: { dataInicio: input.dataInicio, dataFim: input.dataFim },
+          anterior: periodoAnterior,
+          semanaAnterior: semanaAnterior,
+        },
+      };
+    }),
 });

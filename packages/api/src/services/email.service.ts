@@ -273,3 +273,38 @@ export async function enviarEmailNovoCandidato(
 
   return results;
 }
+
+function formatarMesParaExibicao(mesRef: string): string {
+  const [ano, mes] = mesRef.split("-");
+  const meses = [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+  ];
+  const mesIndex = parseInt(mes ?? "1") - 1;
+  return `${meses[mesIndex]} de ${ano}`;
+}
+
+export async function enviarEmailSatisfacaoPendente(
+  email: string,
+  nomeMedico: string,
+  mesReferencia: string
+): Promise<EmailResult> {
+  return sendEmail({
+    to: email,
+    subject: "ClickMedicos - Sua opinião importa!",
+    title: "Pesquisa de Satisfação",
+    body: `Olá, ${nomeMedico}!\n\nGostaríamos de ouvir sua opinião sobre o mês de ${formatarMesParaExibicao(mesReferencia)}.\n\nSua resposta é muito importante para continuarmos melhorando nossos serviços.`,
+    buttonText: "Responder Pesquisa",
+    buttonUrl: `${APP_URL}/dashboard`,
+  });
+}

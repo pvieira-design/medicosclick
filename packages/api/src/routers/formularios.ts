@@ -2,6 +2,7 @@ import { z } from "zod";
 import prisma from "@clickmedicos/db";
 import { router, medicoProcedure, staffProcedure } from "../index";
 import { TRPCError } from "@trpc/server";
+import { enviarEmailSatisfacaoPendente } from "../services/email.service";
 
 const mesReferenciaSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, {
   message: "Formato invalido. Use YYYY-MM (ex: 2026-01)",
@@ -33,7 +34,7 @@ const detalhesPessoaisInputSchema = z.object({
 const satisfacaoInputSchema = z.object({
   npsSuporte: npsSchema,
   npsFerramentas: npsSchema,
-  sugestoes: z.string().optional().nullable(),
+  sugestoes: z.string().default(""),
 });
 
 /** Janela de resposta: dias 1-15 do mes (America/Sao_Paulo) */
@@ -443,5 +444,93 @@ export const formulariosRouter = router({
       });
 
       return sugestoes;
+    }),
+
+  reenviarNotificacaoSatisfacao: staffProcedure
+    .input(
+      z.object({
+        medicoIds: z.array(z.string()).min(1, "Selecione pelo menos um médico"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const mesReferencia = getMesReferenciaAtual();
+      const emailsEnviados: string[] = [];
+      const erros: Array<{ medicoId: string; erro: string }> = [];
+
+      for (const medicoId of input.medicoIds) {
+        try {
+          const jaRespondeu = await prisma.satisfacaoMensal.findUnique({
+            where: {
+              userId_mesReferencia: {
+                userId: medicoId,
+                mesReferencia,
+              },
+            },
+          });
+
+          if (jaRespondeu) {
+            erros.push({
+              medicoId,
+              erro: "Médico já respondeu a pesquisa deste mês",
+            });
+            continue;
+          }
+
+          const medico = await prisma.user.findUnique({
+            where: { id: medicoId },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          });
+
+          if (!medico || !medico.email) {
+            erros.push({
+              medicoId,
+              erro: "Médico não encontrado ou sem email",
+            });
+            continue;
+          }
+
+          const resultadoEmail = await enviarEmailSatisfacaoPendente(
+            medico.email,
+            medico.name || "Médico",
+            mesReferencia
+          );
+
+          if (!resultadoEmail.success) {
+            erros.push({
+              medicoId,
+              erro: resultadoEmail.error || "Erro ao enviar email",
+            });
+            continue;
+          }
+
+          await prisma.notificacao.create({
+            data: {
+              usuarioId: medicoId,
+              tipo: "satisfacao_pendente",
+              titulo: "Pesquisa de Satisfação Pendente",
+              mensagem: "Responda à pesquisa de satisfação do mês",
+            },
+          });
+
+          emailsEnviados.push(medicoId);
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : "Erro desconhecido";
+          erros.push({
+            medicoId,
+            erro: errorMessage,
+          });
+        }
+      }
+
+      return {
+        totalProcessados: input.medicoIds.length,
+        emailsEnviados: emailsEnviados.length,
+        erros,
+        sucesso: erros.length === 0,
+      };
     }),
 });

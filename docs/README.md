@@ -9,7 +9,7 @@ Sistema completo para gestao de horarios de medicos com integracao ao Click CRM.
 - **Banco de Dados**: PostgreSQL
 - **Autenticacao**: Better Auth
 - **Estilizacao**: Tailwind CSS + Radix UI
-- **Monorepo**: Turbo + pnpm
+- **Monorepo**: npm workspaces
 
 ## Estrutura da Documentacao
 
@@ -41,7 +41,7 @@ Sistema completo para gestao de horarios de medicos com integracao ao Click CRM.
 
 ### Pre-requisitos
 - Node.js 18+
-- pnpm 8+
+- npm 10+
 - PostgreSQL 14+
 
 ### Instalacao
@@ -52,19 +52,19 @@ git clone [repo-url]
 cd my-better-t-app
 
 # Instalar dependencias
-pnpm install
+npm install
 
 # Configurar variaveis de ambiente
 cp .env.example .env
 
 # Gerar cliente Prisma
-pnpm db:generate
+npm run db:generate
 
 # Executar migrations
-pnpm db:push
+npm run db:push
 
 # Iniciar desenvolvimento
-pnpm dev
+npm run dev
 ```
 
 ### Estrutura do Monorepo

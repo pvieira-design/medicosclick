@@ -3,7 +3,7 @@ import prisma from "@clickmedicos/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import Dashboard from "./dashboard";
+import AnalyticsPage from "./analytics/page";
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({
@@ -23,7 +23,5 @@ export default async function DashboardPage() {
     redirect("/dashboard/horarios");
   }
 
-  return (
-    <Dashboard session={session} />
-  );
+  return <AnalyticsPage />;
 }

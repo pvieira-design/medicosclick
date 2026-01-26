@@ -27,7 +27,6 @@ import {
   FileText,
   Users,
   User,
-  LayoutDashboard,
   AlertCircle,
   Siren,
   Stethoscope,
@@ -100,8 +99,7 @@ export function Sidebar({ className }: SidebarProps) {
     const isStaff = ["atendente", "diretor", "admin", "super_admin"].includes(role)
     if (isStaff) {
       items.push(
-        { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-        { title: "Analytics", icon: BarChart3, href: "/dashboard/analytics" },
+        { title: "Analytics", icon: BarChart3, href: "/dashboard" },
         { title: "Solicitações Pendentes", icon: AlertCircle, href: "/dashboard/pendentes" },
         { title: "Cancelamentos", icon: Siren, href: "/dashboard/cancelamentos" },
         { title: "Médicos", icon: Stethoscope, href: "/dashboard/medicos" },
