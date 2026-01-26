@@ -370,20 +370,80 @@ model Receita {
 // ========== RECEITA MEDICA - AUDITORIA ==========
 
 model ReceitaAuditoria {
-   id        String   @id @default(uuid())
-   
-   receitaId String
-   receita   Receita  @relation(fields: [receitaId], references: [id], onDelete: Cascade)
-   
-   acao      String   // "CRIADA", "ASSINADA", "CANCELADA", etc
-   
-   medicoId  String
-   medico    User     @relation(fields: [medicoId], references: [id], onDelete: Cascade)
-   
-   createdAt DateTime @default(now())
-   
-   @@index([receitaId])
-   @@index([medicoId])
-   @@index([createdAt])
-   @@map("receita_auditoria")
+    id        String   @id @default(uuid())
+    
+    receitaId String
+    receita   Receita  @relation(fields: [receitaId], references: [id], onDelete: Cascade)
+    
+    acao      String   // "CRIADA", "ASSINADA", "CANCELADA", etc
+    
+    medicoId  String
+    medico    User     @relation(fields: [medicoId], references: [id], onDelete: Cascade)
+    
+    createdAt DateTime @default(now())
+    
+    @@index([receitaId])
+    @@index([medicoId])
+    @@index([createdAt])
+    @@map("receita_auditoria")
+}
+
+// ========== FORMULARIOS - DETALHES PESSOAIS DO MEDICO ==========
+
+model MedicoDetalhesPessoais {
+    id                String   @id @default(uuid())
+    
+    userId            String   @unique
+    user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    
+    // Dados pessoais
+    tamanhoCamisa     String?
+    tamanhoCalcado    String?
+    corFavorita       String?
+    dataAniversario   DateTime?
+    
+    // Endereço
+    cep               String?
+    rua               String?
+    numero            String?
+    complemento       String?
+    bairro            String?
+    cidade            String?
+    estado            String?
+    
+    // Preferências
+    hobbies           String?   @db.Text
+    pets              String?   @db.Text
+    destinoViagem     String?
+    esportePratica    String?
+    marcaRoupa        String?
+    
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
+    
+    @@index([userId])
+    @@map("medico_detalhes_pessoais")
+}
+
+// ========== FORMULARIOS - SATISFACAO MENSAL ==========
+
+model SatisfacaoMensal {
+    id                String   @id @default(uuid())
+    
+    userId            String
+    user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    
+    mesReferencia     String   // Formato: YYYY-MM
+    npsSuporte        Int      // 0-10
+    npsFerramentas    Int      // 0-10
+    sugestoes         String?  @db.Text
+    respondidoEm      DateTime
+    
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+    
+    @@unique([userId, mesReferencia])
+    @@index([userId])
+    @@index([mesReferencia])
+    @@map("satisfacao_mensal")
 }

@@ -41,19 +41,23 @@ model User {
     receitas                    Receita[]
     receitasAuditorias          ReceitaAuditoria[]
    
-   // Relacoes do onboarding
-   candidatosRejeitados        Candidato[]                 @relation("CandidatoRejeitadoPor")
-   candidatosEntrevistados     Candidato[]                 @relation("CandidatoEntrevistador")
-   candidatosAtivados          Candidato[]                 @relation("CandidatoAtivadoPor")
-   candidatoTags               CandidatoTag[]              @relation("CandidatoTagCriadoPor")
-   candidatoHistorico          CandidatoHistorico[]        @relation("CandidatoHistoricoUsuario")
-   candidatoMentores           CandidatoMentor[]           @relation("CandidatoMentorAtribuidoPor")
+    // Relacoes do onboarding
+    candidatosRejeitados        Candidato[]                 @relation("CandidatoRejeitadoPor")
+    candidatosEntrevistados     Candidato[]                 @relation("CandidatoEntrevistador")
+    candidatosAtivados          Candidato[]                 @relation("CandidatoAtivadoPor")
+    candidatoTags               CandidatoTag[]              @relation("CandidatoTagCriadoPor")
+    candidatoHistorico          CandidatoHistorico[]        @relation("CandidatoHistoricoUsuario")
+    candidatoMentores           CandidatoMentor[]           @relation("CandidatoMentorAtribuidoPor")
+    
+    // Relacoes de formularios
+    detalhesPessoais            MedicoDetalhesPessoais?
+    satisfacoesMensais          SatisfacaoMensal[]
 
-  @@unique([email])
-  @@index([tipo])
-  @@index([faixa])
-  @@index([clickDoctorId])
-  @@map("user")
+   @@unique([email])
+   @@index([tipo])
+   @@index([faixa])
+   @@index([clickDoctorId])
+   @@map("user")
 }
 
 model Session {
