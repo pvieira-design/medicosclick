@@ -567,65 +567,184 @@ function CancelamentoTab() {
 }
 
 function ExpandedCancelamentoDetails({ cancelamento }: { cancelamento: any }) {
-  const slots: Slot[] = Array.isArray(cancelamento.slots) ? cancelamento.slots : [];
-  const slotsSorted = sortSlotsByWeekdayAndTime(slots);
+  const slotsAprovados: Slot[] = Array.isArray(cancelamento.slotsAprovados) ? cancelamento.slotsAprovados : [];
+  const slotsRejeitados: Slot[] = Array.isArray(cancelamento.slotsRejeitados) ? cancelamento.slotsRejeitados : [];
+  const slotsSolicitados: Slot[] = Array.isArray(cancelamento.slots) ? cancelamento.slots : [];
+
+  const aprovadosSet = new Set(slotsAprovados.map(s => `${s.diaSemana}-${s.horario}`));
+  const rejeitadosSet = new Set(slotsRejeitados.map(s => `${s.diaSemana}-${s.horario}`));
+
+  const allSlotsSorted = sortSlotsByWeekdayAndTime(slotsSolicitados);
   
-  const slotsByDay = slotsSorted.reduce((acc, slot) => {
+  const slotsByDay = allSlotsSorted.reduce((acc, slot) => {
     const day = slot.diaSemana;
     if (!acc[day]) acc[day] = [];
     acc[day].push(slot);
     return acc;
   }, {} as Record<string, Slot[]>);
 
+  // Determine display status
+  let displayStatus = cancelamento.status;
+  if (cancelamento.status === "aprovado" && slotsRejeitados.length > 0 && slotsAprovados.length > 0) {
+    displayStatus = "parcial";
+  }
+
+  if (displayStatus === "pendente") {
+    return (
+      <div className="p-4 pl-12 animate-in slide-in-from-top-2 duration-200 space-y-4">
+        <div>
+          <h4 className="font-medium text-sm text-amber-700 flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4" /> Horários Aguardando Aprovação
+          </h4>
+          <div className="space-y-3">
+            {Object.entries(slotsByDay).map(([day, slots]) => (
+              <div key={day} className="flex items-start gap-3">
+                <span className="text-sm font-medium text-gray-600 w-20 pt-1">
+                  {WEEKDAY_LABELS[day] || day}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {slots.map((slot, idx) => (
+                    <span 
+                      key={idx} 
+                      className="font-mono text-xs px-2 py-1 rounded bg-amber-100 text-amber-800 border border-amber-200"
+                    >
+                      {slot.horario}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {cancelamento.motivoDescricao && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <h4 className="font-medium text-sm text-gray-700 mb-1">Descrição do Motivo</h4>
+            <p className="text-sm text-gray-600">{cancelamento.motivoDescricao}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (displayStatus === "rejeitado") {
+    return (
+      <div className="p-4 pl-12 animate-in slide-in-from-top-2 duration-200 space-y-4">
+        <div>
+          <h4 className="font-medium text-sm text-red-700 flex items-center gap-2 mb-3">
+            <XCircle className="w-4 h-4" /> Todos os Horários Foram Rejeitados
+          </h4>
+          <div className="space-y-3">
+            {Object.entries(slotsByDay).map(([day, slots]) => (
+              <div key={day} className="flex items-start gap-3">
+                <span className="text-sm font-medium text-gray-600 w-20 pt-1">
+                  {WEEKDAY_LABELS[day] || day}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {slots.map((slot, idx) => (
+                    <span 
+                      key={idx} 
+                      className="font-mono text-xs px-2 py-1 rounded bg-red-100 text-red-800 border border-red-200"
+                    >
+                      {slot.horario}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {cancelamento.motivoDescricao && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <h4 className="font-medium text-sm text-gray-700 mb-1">Descrição do Motivo</h4>
+            <p className="text-sm text-gray-600">{cancelamento.motivoDescricao}</p>
+          </div>
+        )}
+
+        {cancelamento.motivoRejeicao && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <h4 className="font-medium text-sm text-red-700 flex items-center gap-2 mb-1">
+              <AlertCircle className="w-4 h-4" /> Motivo da Rejeição
+            </h4>
+            <p className="text-sm text-red-600">{cancelamento.motivoRejeicao}</p>
+          </div>
+        )}
+
+        {cancelamento.processadoPor && (
+          <div className="text-xs text-muted-foreground">
+            Processado por: {cancelamento.processadoPor.name}
+            {cancelamento.processadoEm && ` em ${formatDate(cancelamento.processadoEm)}`}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Aprovado ou Parcial
   return (
     <div className="p-4 pl-12 animate-in slide-in-from-top-2 duration-200 space-y-4">
-      <div>
-        <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2 mb-3">
-          <Siren className="w-4 h-4 text-red-500" /> Horários Solicitados para Cancelamento
-        </h4>
-        <div className="space-y-3">
-          {Object.entries(slotsByDay).map(([day, daySlots]) => (
-            <div key={day} className="flex items-start gap-3">
-              <span className="text-sm font-medium text-gray-600 w-20 pt-1">
-                {WEEKDAY_LABELS[day] || day}
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {daySlots.map((slot, idx) => (
-                  <span 
-                    key={idx} 
-                    className={cn(
-                      "font-mono text-xs px-2 py-1 rounded border",
-                      cancelamento.status === "pendente" && "bg-yellow-100 text-yellow-800 border-yellow-200",
-                      cancelamento.status === "aprovado" && "bg-green-100 text-green-800 border-green-200",
-                      cancelamento.status === "rejeitado" && "bg-red-100 text-red-800 border-red-200"
-                    )}
-                  >
+      <div className="flex items-center gap-4 text-xs mb-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-green-500"></div>
+          <span className="text-muted-foreground">Aprovado</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-red-500"></div>
+          <span className="text-muted-foreground">Não aprovado</span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {Object.entries(slotsByDay).map(([day, slots]) => (
+          <div key={day} className="flex items-start gap-3">
+            <span className="text-sm font-medium text-gray-600 w-20 pt-1">
+              {WEEKDAY_LABELS[day] || day}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {slots.map((slot, idx) => {
+                const slotKey = `${slot.diaSemana}-${slot.horario}`;
+                const isAprovado = aprovadosSet.has(slotKey);
+                const isRejeitado = rejeitadosSet.has(slotKey);
+                
+                let className = "font-mono text-xs px-2 py-1 rounded border ";
+                if (isAprovado) {
+                  className += "bg-green-100 text-green-800 border-green-200";
+                } else if (isRejeitado) {
+                  className += "bg-red-100 text-red-800 border-red-200";
+                } else {
+                  // Fallback for approved status if not explicitly in sets (should be approved)
+                  className += "bg-green-100 text-green-800 border-green-200";
+                }
+                
+                return (
+                  <span key={idx} className={className}>
                     {slot.horario}
                   </span>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       {cancelamento.motivoDescricao && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <h4 className="font-medium text-sm text-gray-700 mb-1">Descrição</h4>
+          <h4 className="font-medium text-sm text-gray-700 mb-1">Descrição do Motivo</h4>
           <p className="text-sm text-gray-600">{cancelamento.motivoDescricao}</p>
         </div>
       )}
 
-      {cancelamento.status === "rejeitado" && cancelamento.motivoRejeicao && (
+      {cancelamento.motivoRejeicao && slotsRejeitados.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
           <h4 className="font-medium text-sm text-red-700 flex items-center gap-2 mb-1">
-            <AlertCircle className="w-4 h-4" /> Motivo da Rejeição
+            <AlertCircle className="w-4 h-4" /> Motivo dos horários não aprovados
           </h4>
           <p className="text-sm text-red-600">{cancelamento.motivoRejeicao}</p>
         </div>
       )}
 
-      {cancelamento.status === "aprovado" && cancelamento.strikeAplicado && (
+      {cancelamento.strikeAplicado && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <h4 className="font-medium text-sm text-amber-700 flex items-center gap-2 mb-1">
             <AlertCircle className="w-4 h-4" /> Strike Aplicado
