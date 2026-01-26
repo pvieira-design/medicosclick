@@ -183,6 +183,10 @@ model CancelamentoEmergencial {
   
   status            CancelamentoStatus  @default(pendente)
   
+  // Aprovacao
+  slotsAprovados    Json?               // Slots que foram aprovados (pode ser parcial)
+  slotsRejeitados   Json?               // Slots que foram rejeitados
+  
   // Processamento
   processadoPorId   String?
   processadoPor     User?               @relation("cancelamentosProcessados", fields: [processadoPorId], references: [id])
