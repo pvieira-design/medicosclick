@@ -158,56 +158,66 @@ export function SatisfacaoModal({ open, onOpenChange }: SatisfacaoModalProps) {
                       <span>Muito insatisfeito</span>
                       <span>Muito satisfeito</span>
                     </div>
-                    {field.state.meta.errors ? (
-                      <p className="text-xs text-red-500">{field.state.meta.errors.join(", ")}</p>
+                    {field.state.meta.errors && field.state.meta.errors.length > 0 ? (
+                      <p className="text-xs text-red-500">
+                        {field.state.meta.errors
+                          .filter((err): err is NonNullable<typeof err> => err != null)
+                          .map((err) => typeof err === 'string' ? err : String(err))
+                          .join(", ")}
+                      </p>
                     ) : null}
-                  </div>
-                )}
-              </form.Field>
+                   </div>
+                 )}
+               </form.Field>
 
-              <form.Field name="npsFerramentas">
-                {(field) => (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-base">Como você avalia as ferramentas?</Label>
-                      <span className={cn(
-                        "text-sm font-bold",
-                        field.state.value >= 9 ? "text-green-600" :
-                        field.state.value >= 7 ? "text-yellow-600" :
-                        field.state.value !== undefined ? "text-red-600" : "text-transparent"
-                      )}>
-                        {field.state.value !== undefined ? field.state.value : "-"}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 flex-wrap justify-center sm:justify-start">
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                        <Button
-                          key={num}
-                          type="button"
-                          variant={field.state.value === num ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => field.handleChange(num)}
-                          className={cn(
-                            "w-9 h-9 p-0 font-medium transition-all",
-                            field.state.value === num && "scale-110 shadow-md ring-2 ring-offset-1 ring-brand-200"
-                          )}
-                        >
-                          {num}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground px-1">
-                      <span>Muito insatisfeito</span>
-                      <span>Muito satisfeito</span>
-                    </div>
-                    {field.state.meta.errors ? (
-                      <p className="text-xs text-red-500">{field.state.meta.errors.join(", ")}</p>
-                    ) : null}
-                  </div>
-                )}
-              </form.Field>
+               <form.Field name="npsFerramentas">
+                 {(field) => (
+                   <div className="space-y-3">
+                     <div className="flex justify-between items-center">
+                       <Label className="text-base">Como você avalia as ferramentas?</Label>
+                       <span className={cn(
+                         "text-sm font-bold",
+                         field.state.value >= 9 ? "text-green-600" :
+                         field.state.value >= 7 ? "text-yellow-600" :
+                         field.state.value !== undefined ? "text-red-600" : "text-transparent"
+                       )}>
+                         {field.state.value !== undefined ? field.state.value : "-"}
+                       </span>
+                     </div>
+                     <div className="flex gap-1 flex-wrap justify-center sm:justify-start">
+                       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                         <Button
+                           key={num}
+                           type="button"
+                           variant={field.state.value === num ? "default" : "outline"}
+                           size="sm"
+                           onClick={() => field.handleChange(num)}
+                           className={cn(
+                             "w-9 h-9 p-0 font-medium transition-all",
+                             field.state.value === num && "scale-110 shadow-md ring-2 ring-offset-1 ring-brand-200"
+                           )}
+                         >
+                           {num}
+                         </Button>
+                       ))}
+                     </div>
+                     <div className="flex justify-between text-xs text-muted-foreground px-1">
+                       <span>Muito insatisfeito</span>
+                       <span>Muito satisfeito</span>
+                     </div>
+                     {field.state.meta.errors && field.state.meta.errors.length > 0 ? (
+                       <p className="text-xs text-red-500">
+                         {field.state.meta.errors
+                           .filter((err): err is NonNullable<typeof err> => err != null)
+                           .map((err) => typeof err === 'string' ? err : String(err))
+                           .join(", ")}
+                       </p>
+                     ) : null}
+                   </div>
+                 )}
+               </form.Field>
 
-              <form.Field name="sugestoes">
+               <form.Field name="sugestoes">
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor={field.name}>Sugestões ou Comentários (Opcional)</Label>

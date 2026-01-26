@@ -42,6 +42,8 @@ export default function EmergencyCancellationPage() {
   const [motivoCategoria, setMotivoCategoria] = useState<string>("");
   const [motivoDescricao, setMotivoDescricao] = useState<string>("");
 
+  const { data: me } = useQuery(trpc.me.queryOptions());
+
   const next3Days = useMemo(() => {
     const days = [];
     const today = new Date();
@@ -59,9 +61,10 @@ export default function EmergencyCancellationPage() {
 
   const targetDays = useMemo(() => new Set(next3Days.map(d => d.diaSemana)), [next3Days]);
 
-  const { data: gradeData, isLoading: isLoadingGrade } = useQuery(
-    trpc.medico.getGradeEmergencial.queryOptions()
-  );
+  const { data: gradeData, isLoading: isLoadingGrade } = useQuery({
+    ...trpc.medico.getGradeEmergencial.queryOptions(),
+    enabled: !!me && me.user.tipo === "medico",
+  });
 
   const relevantSlots = useMemo(() => {
     if (!gradeData?.horariosAbertos) return [];

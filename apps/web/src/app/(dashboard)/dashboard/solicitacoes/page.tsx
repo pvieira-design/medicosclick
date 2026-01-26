@@ -101,7 +101,11 @@ function getDisplayStatus(request: any): "pendente" | "aprovada" | "parcial" | "
 }
 
 export default function MyRequestsPage() {
-  const [activeTab, setActiveTab] = useState<"abertura" | "cancelamento">("abertura");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<"abertura" | "cancelamento">(
+    tabFromUrl === "cancelamento" ? "cancelamento" : "abertura"
+  );
   
   return (
     <div className="flex flex-col gap-6 p-6 max-w-[1200px] mx-auto animate-in fade-in duration-500">
@@ -384,7 +388,12 @@ const MOTIVO_LABELS: Record<string, string> = {
 
 function CancelamentoTab() {
   const [page, setPage] = useState(1);
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get("id");
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>(() => 
+    highlightId ? { [highlightId]: true } : {}
+  );
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const perPage = 10;
 
   const { data, isLoading, isError } = useQuery(
@@ -393,6 +402,15 @@ function CancelamentoTab() {
       perPage,
     })
   );
+
+  useEffect(() => {
+    if (highlightId && data?.cancelamentos && rowRefs.current[highlightId]) {
+      setExpandedRows(prev => ({ ...prev, [highlightId]: true }));
+      setTimeout(() => {
+        rowRefs.current[highlightId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    }
+  }, [highlightId, data?.cancelamentos]);
 
   const handleToggleRow = (id: string) => {
     setExpandedRows((prev) => ({
@@ -469,9 +487,11 @@ function CancelamentoTab() {
                 data?.cancelamentos.map((cancelamento: any) => (
                   <Fragment key={cancelamento.id}>
                     <TableRow 
+                      ref={(el) => { rowRefs.current[cancelamento.id] = el; }}
                       className={cn(
                         "cursor-pointer hover:bg-gray-50/80 transition-colors",
-                        expandedRows[cancelamento.id] && "bg-gray-50/50 border-b-transparent"
+                        expandedRows[cancelamento.id] && "bg-gray-50/50 border-b-transparent",
+                        highlightId === cancelamento.id && "ring-2 ring-primary ring-inset bg-primary/5"
                       )}
                       onClick={() => handleToggleRow(cancelamento.id)}
                     >

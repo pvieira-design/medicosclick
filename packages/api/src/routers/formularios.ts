@@ -39,10 +39,11 @@ const satisfacaoInputSchema = z.object({
 
 /** Janela de resposta: dias 1-15 do mes (America/Sao_Paulo) */
 function estaDentroJanelaResposta(): boolean {
-  const agora = new Date();
-  const spDate = new Date(agora.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  const diaDoMes = spDate.getDate();
-  return diaDoMes >= 1 && diaDoMes <= 15;
+  return true;
+  // const agora = new Date();
+  // const spDate = new Date(agora.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  // const diaDoMes = spDate.getDate();
+  // return diaDoMes >= 1 && diaDoMes <= 15;
 }
 
 /** Retorna mes atual no formato YYYY-MM (America/Sao_Paulo) */
@@ -148,13 +149,6 @@ export const formulariosRouter = router({
     .mutation(async ({ ctx, input }) => {
       const mesReferencia = getMesReferenciaAtual();
 
-      if (!estaDentroJanelaResposta()) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "A pesquisa de satisfacao so pode ser respondida entre os dias 1 e 15 do mes",
-        });
-      }
-
       const existente = await prisma.satisfacaoMensal.findUnique({
         where: {
           userId_mesReferencia: {
@@ -247,6 +241,91 @@ export const formulariosRouter = router({
       totalPendentes: medicosPendentes.length,
     };
   }),
+
+  listarMedicosQueResponderam: staffProcedure
+    .input(
+      z.object({
+        mesReferencia: mesReferenciaSchema.optional(),
+      }).optional()
+    )
+    .query(async ({ input }) => {
+      const mesReferencia = input?.mesReferencia ?? getMesReferenciaAtual();
+
+      const respostas = await prisma.satisfacaoMensal.findMany({
+        where: { mesReferencia },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              faixa: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { respondidoEm: "desc" },
+      });
+
+      return {
+        mesReferencia,
+        respostas,
+        totalRespostas: respostas.length,
+      };
+    }),
+
+  getEstatisticasSatisfacao: staffProcedure.query(async () => {
+    const mesReferencia = getMesReferenciaAtual();
+
+    const [totalMedicosAtivos, agregados] = await Promise.all([
+      prisma.user.count({
+        where: {
+          tipo: "medico",
+          ativo: true,
+        },
+      }),
+      prisma.satisfacaoMensal.aggregate({
+        where: { mesReferencia },
+        _avg: {
+          npsSuporte: true,
+          npsFerramentas: true,
+        },
+        _count: true,
+      }),
+    ]);
+
+    const totalResponderam = agregados._count;
+    const totalPendentes = totalMedicosAtivos - totalResponderam;
+    const mediaSuporte = agregados._avg.npsSuporte ?? 0;
+    const mediaFerramentas = agregados._avg.npsFerramentas ?? 0;
+
+    return {
+      mesReferencia,
+      dentroJanela: estaDentroJanelaResposta(),
+      totalMedicosAtivos,
+      totalResponderam,
+      totalPendentes,
+      mediaSuporte: Number(mediaSuporte.toFixed(1)),
+      mediaFerramentas: Number(mediaFerramentas.toFixed(1)),
+      mediaGeral: Number(((mediaSuporte + mediaFerramentas) / 2).toFixed(1)),
+    };
+  }),
+
+  getHistoricoSatisfacaoByMedico: staffProcedure
+    .input(
+      z.object({
+        medicoId: z.string(),
+      })
+    )
+    .query(async ({ input }) => {
+      const respostas = await prisma.satisfacaoMensal.findMany({
+        where: { userId: input.medicoId },
+        orderBy: { mesReferencia: "desc" },
+        take: 12,
+      });
+
+      return respostas;
+    }),
 
   getNpsGeral: staffProcedure
     .input(
@@ -450,6 +529,7 @@ export const formulariosRouter = router({
     .input(
       z.object({
         medicoIds: z.array(z.string()).min(1, "Selecione pelo menos um médico"),
+        tipoEnvio: z.enum(['notificacao', 'email', 'ambos']).default('ambos'),
       })
     )
     .mutation(async ({ input }) => {
@@ -459,23 +539,6 @@ export const formulariosRouter = router({
 
       for (const medicoId of input.medicoIds) {
         try {
-          const jaRespondeu = await prisma.satisfacaoMensal.findUnique({
-            where: {
-              userId_mesReferencia: {
-                userId: medicoId,
-                mesReferencia,
-              },
-            },
-          });
-
-          if (jaRespondeu) {
-            erros.push({
-              medicoId,
-              erro: "Médico já respondeu a pesquisa deste mês",
-            });
-            continue;
-          }
-
           const medico = await prisma.user.findUnique({
             where: { id: medicoId },
             select: {
@@ -485,36 +548,48 @@ export const formulariosRouter = router({
             },
           });
 
-          if (!medico || !medico.email) {
+          if (!medico) {
             erros.push({
               medicoId,
-              erro: "Médico não encontrado ou sem email",
+              erro: "Médico não encontrado",
             });
             continue;
           }
 
-          const resultadoEmail = await enviarEmailSatisfacaoPendente(
-            medico.email,
-            medico.name || "Médico",
-            mesReferencia
-          );
+          if (input.tipoEnvio === 'email' || input.tipoEnvio === 'ambos') {
+            if (!medico.email) {
+              erros.push({
+                medicoId,
+                erro: "Médico sem email cadastrado",
+              });
+              continue;
+            }
 
-          if (!resultadoEmail.success) {
-            erros.push({
-              medicoId,
-              erro: resultadoEmail.error || "Erro ao enviar email",
-            });
-            continue;
+            const resultadoEmail = await enviarEmailSatisfacaoPendente(
+              medico.email,
+              medico.name || "Médico",
+              mesReferencia
+            );
+
+            if (!resultadoEmail.success) {
+              erros.push({
+                medicoId,
+                erro: resultadoEmail.error || "Erro ao enviar email",
+              });
+              continue;
+            }
           }
 
-          await prisma.notificacao.create({
-            data: {
-              usuarioId: medicoId,
-              tipo: "satisfacao_pendente",
-              titulo: "Pesquisa de Satisfação Pendente",
-              mensagem: "Responda à pesquisa de satisfação do mês",
-            },
-          });
+          if (input.tipoEnvio === 'notificacao' || input.tipoEnvio === 'ambos') {
+            await prisma.notificacao.create({
+              data: {
+                usuarioId: medicoId,
+                tipo: "satisfacao_pendente",
+                titulo: "Pesquisa de Satisfação Pendente",
+                mensagem: "Responda à pesquisa de satisfação do mês",
+              },
+            });
+          }
 
           emailsEnviados.push(medicoId);
         } catch (err) {

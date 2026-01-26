@@ -10,7 +10,8 @@ import {
   Info,
   Bell,
   Check,
-  Clock
+  Clock,
+  Star
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -44,7 +45,8 @@ type NotificationType =
   | 'solicitacao_rejeitada' 
   | 'cancelamento_criado' 
   | 'cancelamento_aprovado' 
-  | 'cancelamento_rejeitado';
+  | 'cancelamento_rejeitado'
+  | 'satisfacao_pendente';
 
 interface Notification {
   id: string;
@@ -114,6 +116,11 @@ export default function NotificationsPage() {
       markAsReadMutation.mutate({ notificacaoId: notification.id });
     }
 
+    if (notification.tipo === 'satisfacao_pendente') {
+      router.push(`/dashboard/satisfacao`);
+      return;
+    }
+
     if (!notification.referenciaId) return;
 
     switch (notification.tipo) {
@@ -125,9 +132,11 @@ export default function NotificationsPage() {
         router.push(`/dashboard/solicitacoes?id=${notification.referenciaId}`);
         break;
       case 'cancelamento_criado':
+        router.push(`/dashboard/cancelamentos?id=${notification.referenciaId}`);
+        break;
       case 'cancelamento_aprovado':
       case 'cancelamento_rejeitado':
-        router.push(`/dashboard/cancelamentos?id=${notification.referenciaId}`);
+        router.push(`/dashboard/solicitacoes?tab=cancelamento&id=${notification.referenciaId}`);
         break;
     }
   };
@@ -142,6 +151,8 @@ export default function NotificationsPage() {
         return <XCircle className="h-5 w-5 text-red-600" />;
       case 'cancelamento_criado':
         return <AlertCircle className="h-5 w-5 text-amber-600" />;
+      case 'satisfacao_pendente':
+        return <Star className="h-5 w-5 text-purple-600" />;
       case 'solicitacao_criada':
       default:
         return <Info className="h-5 w-5 text-brand-600" />;
@@ -158,6 +169,8 @@ export default function NotificationsPage() {
         return "bg-red-50 border-red-100";
       case 'cancelamento_criado':
         return "bg-amber-50 border-amber-100";
+      case 'satisfacao_pendente':
+        return "bg-purple-50 border-purple-100";
       case 'solicitacao_criada':
       default:
         return "bg-brand-50 border-brand-100";

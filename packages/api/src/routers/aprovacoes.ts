@@ -425,14 +425,23 @@ export const aprovacoesRouter = router({
         }
 
         for (const slot of slotsAprovados) {
-          await tx.medicoHorario.updateMany({
+          await tx.medicoHorario.upsert({
             where: {
+              medicoId_diaSemana_horario: {
+                medicoId: cancelamento.medicoId,
+                diaSemana: slot.diaSemana as "dom" | "seg" | "ter" | "qua" | "qui" | "sex" | "sab",
+                horario: slot.horario,
+              },
+            },
+            create: {
               medicoId: cancelamento.medicoId,
               diaSemana: slot.diaSemana as "dom" | "seg" | "ter" | "qua" | "qui" | "sex" | "sab",
               horario: slot.horario,
-              ativo: true,
+              ativo: false,
             },
-            data: { ativo: false },
+            update: {
+              ativo: false,
+            },
           });
         }
 

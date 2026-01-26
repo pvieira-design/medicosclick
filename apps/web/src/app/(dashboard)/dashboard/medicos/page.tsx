@@ -1526,6 +1526,175 @@ function HistoricoTab({ medicoId }: { medicoId: string }) {
   );
 }
 
+function NpsTab({ medicoId }: { medicoId: string }) {
+  const { data: historico, isLoading } = useQuery({
+    ...trpc.formularios.getHistoricoSatisfacaoByMedico.queryOptions({ medicoId }),
+    enabled: !!medicoId,
+  });
+
+  const formatMes = (mesRef: string) => {
+    const [ano, mes] = mesRef.split('-');
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    return `${meses[parseInt(mes) - 1]} ${ano}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  if (!historico || historico.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <Star className="h-10 w-10 text-slate-300 mb-3" />
+        <p className="text-sm font-medium text-slate-600">Nenhuma resposta de satisfação</p>
+        <p className="text-xs text-slate-400 mt-1">Este médico ainda não respondeu pesquisas de NPS</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+        Histórico de Respostas ({historico.length})
+      </h3>
+      <div className="space-y-3">
+        {historico.map((resposta) => (
+          <div key={resposta.id} className="bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {formatMes(resposta.mesReferencia)}
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Respondido em {new Date(resposta.respondidoEm).toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <div className="text-center">
+                  <div className="text-xs text-slate-500 mb-1">Suporte</div>
+                  <div className="text-lg font-bold text-blue-600">{resposta.npsSuporte}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-slate-500 mb-1">Ferramentas</div>
+                  <div className="text-lg font-bold text-purple-600">{resposta.npsFerramentas}</div>
+                </div>
+              </div>
+            </div>
+            {resposta.sugestoes && resposta.sugestoes.trim() !== "" && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-medium text-slate-500 mb-1">Sugestões:</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{resposta.sugestoes}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DadosPessoaisTab({ medicoId }: { medicoId: string }) {
+  const { data: detalhes, isLoading } = useQuery({
+    ...trpc.formularios.getDetalhesPessoaisByMedico.queryOptions({ medicoId }),
+    enabled: !!medicoId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!detalhes) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <User className="h-10 w-10 text-slate-300 mb-3" />
+        <p className="text-sm font-medium text-slate-600">Nenhum dado pessoal cadastrado</p>
+        <p className="text-xs text-slate-400 mt-1">Este médico ainda não preencheu seus dados pessoais</p>
+      </div>
+    );
+  }
+
+  const InfoItem = ({ label, value }: { label: string; value: string | null | undefined }) => {
+    if (!value) return null;
+    return (
+      <div className="flex flex-col">
+        <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</span>
+        <span className="text-sm text-slate-900 dark:text-slate-100 mt-1">{value}</span>
+      </div>
+    );
+  };
+
+  const hasVestuario = detalhes.tamanhoCamisa || detalhes.tamanhoCalcado || detalhes.corFavorita;
+  const hasEndereco = detalhes.cep || detalhes.rua || detalhes.cidade || detalhes.estado;
+  const hasPreferencias = detalhes.hobbies || detalhes.pets || detalhes.destinoViagem || detalhes.esportePratica || detalhes.marcaRoupa;
+
+  return (
+    <div className="space-y-6">
+      {hasVestuario && (
+        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 p-5">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-slate-500" />
+            Vestuário
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <InfoItem label="Camisa" value={detalhes.tamanhoCamisa} />
+            <InfoItem label="Calçado" value={detalhes.tamanhoCalcado} />
+            <InfoItem label="Cor Favorita" value={detalhes.corFavorita} />
+          </div>
+        </div>
+      )}
+
+      {detalhes.dataAniversario && (
+        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 p-5">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-slate-500" />
+            Aniversário
+          </h4>
+          <InfoItem label="Data" value={new Date(detalhes.dataAniversario).toLocaleDateString('pt-BR')} />
+        </div>
+      )}
+
+      {hasEndereco && (
+        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 p-5">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Endereço</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InfoItem label="CEP" value={detalhes.cep} />
+            <InfoItem label="Rua" value={detalhes.rua} />
+            <InfoItem label="Número" value={detalhes.numero} />
+            <InfoItem label="Complemento" value={detalhes.complemento} />
+            <InfoItem label="Bairro" value={detalhes.bairro} />
+            <InfoItem label="Cidade" value={detalhes.cidade} />
+            <InfoItem label="Estado" value={detalhes.estado} />
+          </div>
+        </div>
+      )}
+
+      {hasPreferencias && (
+        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 p-5">
+          <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Preferências</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InfoItem label="Hobbies" value={detalhes.hobbies} />
+            <InfoItem label="Pets" value={detalhes.pets} />
+            <InfoItem label="Destino de Viagem" value={detalhes.destinoViagem} />
+            <InfoItem label="Esporte" value={detalhes.esportePratica} />
+            <InfoItem label="Marca de Roupa" value={detalhes.marcaRoupa} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; onOpenChange: (open: boolean) => void; doctorId: string | null }) {
   const { data: doctor, isLoading } = useQuery({
     ...trpc.usuarios.getMedico.queryOptions({ id: doctorId! }),
@@ -1620,9 +1789,11 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
             <MetricasPerformance doctorId={doctor.id} />
 
             <Tabs defaultValue="schedule" className="w-full">
-              <TabsList className="w-full grid grid-cols-4 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
+              <TabsList className="w-full grid grid-cols-3 lg:grid-cols-6 mb-6 bg-slate-100/50 dark:bg-slate-800/50 p-1">
                 <TabsTrigger value="schedule">Agenda</TabsTrigger>
                 <TabsTrigger value="historico">Histórico</TabsTrigger>
+                <TabsTrigger value="nps">NPS</TabsTrigger>
+                <TabsTrigger value="dados-pessoais">Dados Pessoais</TabsTrigger>
                 <TabsTrigger value="observacoes">Observações</TabsTrigger>
                 <TabsTrigger value="settings">Configurações</TabsTrigger>
               </TabsList>
@@ -1633,6 +1804,14 @@ function DoctorDetailDrawer({ open, onOpenChange, doctorId }: { open: boolean; o
 
               <TabsContent value="historico">
                 <HistoricoTab medicoId={doctor.id} />
+              </TabsContent>
+
+              <TabsContent value="nps">
+                <NpsTab medicoId={doctor.id} />
+              </TabsContent>
+
+              <TabsContent value="dados-pessoais">
+                <DadosPessoaisTab medicoId={doctor.id} />
               </TabsContent>
 
               <TabsContent value="observacoes">

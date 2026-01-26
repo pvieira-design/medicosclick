@@ -16,14 +16,16 @@ export function FormulariosPendentesAlert() {
 
   const { data: me } = useQuery(trpc.me.queryOptions())
   
+  const isMedico = !!me && me.user.tipo === "medico"
+  
   const { data: detalhes, isLoading: isLoadingDetalhes } = useQuery({
     ...trpc.formularios.getDetalhesPessoais.queryOptions(undefined),
-    enabled: !!me && me.user.tipo === "medico",
+    enabled: isMedico,
   })
   
   const { data: satisfacao, isLoading: isLoadingSatisfacao } = useQuery({
     ...trpc.formularios.getSatisfacaoAtual.queryOptions(undefined),
-    enabled: !!me && me.user.tipo === "medico",
+    enabled: isMedico,
   })
 
   useEffect(() => {
@@ -41,8 +43,8 @@ export function FormulariosPendentesAlert() {
     }
     setIsDismissed(false)
   }, [])
-
-  if (!me || me.user.tipo !== "medico") return null
+  
+  if (!isMedico) return null
   if (isDismissed) return null
   if (isLoadingDetalhes || isLoadingSatisfacao) return null
 
