@@ -375,6 +375,8 @@ export const aprovacoesRouter = router({
   aprovarCancelamento: staffProcedure
     .input(z.object({ 
       cancelamentoId: z.string(),
+      slotsAprovados: z.array(SlotSchema).optional(),
+      slotsRejeitados: z.array(SlotSchema).optional(),
       aplicarStrike: z.boolean()
     }))
     .mutation(async ({ ctx, input }) => {
@@ -397,7 +399,8 @@ export const aprovacoesRouter = router({
         });
       }
 
-      const slots = cancelamento.slots as Array<{ diaSemana: string; horario: string }>;
+      const slotsOriginais = cancelamento.slots as Array<{ diaSemana: string; horario: string }>;
+      const slotsAprovados = input.slotsAprovados ?? slotsOriginais;
 
       const result = await prisma.$transaction(async (tx) => {
         const strikeAntes = cancelamento.medico.strikes;
@@ -409,6 +412,8 @@ export const aprovacoesRouter = router({
             processadoPorId: ctx.user.id,
             processadoEm: new Date(),
             strikeAplicado: input.aplicarStrike,
+            slotsAprovados: slotsAprovados,
+            slotsRejeitados: input.slotsRejeitados ?? [],
           },
         });
 
@@ -419,7 +424,7 @@ export const aprovacoesRouter = router({
           });
         }
 
-        for (const slot of slots) {
+        for (const slot of slotsAprovados) {
           await tx.medicoHorario.updateMany({
             where: {
               medicoId: cancelamento.medicoId,
@@ -438,9 +443,11 @@ export const aprovacoesRouter = router({
             acao: "APROVAR_CANCELAMENTO",
             entidade: "cancelamento_emergencial",
             entidadeId: input.cancelamentoId,
-            dadosAntes: { status: "pendente", strikeAntes },
+            dadosAntes: { status: "pendente", slots: slotsOriginais, strikeAntes },
             dadosDepois: { 
               status: "aprovado", 
+              slotsAprovados,
+              slotsRejeitados: input.slotsRejeitados ?? [],
               strikeAplicado: input.aplicarStrike,
               strikeDepois: input.aplicarStrike ? strikeAntes + 1 : strikeAntes
             },
