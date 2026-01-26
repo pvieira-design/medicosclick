@@ -475,7 +475,16 @@ export const aprovacoesRouter = router({
         });
       }
 
-      notificarCancelamentoAprovado(cancelamento.medicoId, input.cancelamentoId).catch((err: unknown) => {
+      const aprovacaoParcial = input.slotsRejeitados && input.slotsRejeitados.length > 0
+        ? { aprovados: slotsAprovados.length, rejeitados: input.slotsRejeitados.length }
+        : undefined;
+
+      notificarCancelamentoAprovado(
+        cancelamento.medicoId, 
+        input.cancelamentoId,
+        input.aplicarStrike,
+        aprovacaoParcial
+      ).catch((err: unknown) => {
         console.error("[Notification] Falha ao notificar cancelamento aprovado:", err);
       });
 

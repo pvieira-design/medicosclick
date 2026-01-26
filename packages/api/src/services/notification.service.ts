@@ -193,22 +193,35 @@ export async function notificarCancelamentoCriado(
 export async function notificarCancelamentoAprovado(
   medicoId: string,
   cancelamentoId: string,
-  aplicouStrike: boolean = true
+  aplicouStrike: boolean = true,
+  aprovacaoParcial?: { aprovados: number; rejeitados: number }
 ) {
   const medico = await prisma.user.findUnique({
     where: { id: medicoId },
     select: { name: true, email: true },
   });
 
-  const mensagem = aplicouStrike
+  const aprovados = aprovacaoParcial?.aprovados ?? 0;
+  const rejeitados = aprovacaoParcial?.rejeitados ?? 0;
+  
+  let mensagem = aplicouStrike
     ? "Seu cancelamento emergencial foi aprovado. Um strike foi aplicado à sua conta."
     : "Seu cancelamento emergencial foi aprovado.";
+  
+  let titulo = "Cancelamento aprovado";
+  
+  if (rejeitados > 0) {
+    mensagem = aplicouStrike
+      ? `Seu cancelamento foi parcialmente aprovado: ${aprovados} horários aprovados e ${rejeitados} rejeitados. Um strike foi aplicado à sua conta.`
+      : `Seu cancelamento foi parcialmente aprovado: ${aprovados} horários aprovados e ${rejeitados} rejeitados.`;
+    titulo = "Cancelamento parcialmente aprovado";
+  }
 
   await prisma.notificacao.create({
     data: {
       usuarioId: medicoId,
       tipo: "cancelamento_aprovado",
-      titulo: "Cancelamento aprovado",
+      titulo,
       mensagem,
       referenciaId: cancelamentoId,
       referenciaTipo: "cancelamento",
