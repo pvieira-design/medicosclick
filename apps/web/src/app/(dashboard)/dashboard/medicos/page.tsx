@@ -679,6 +679,19 @@ function FaixaFixaControl({
     }
   });
 
+  const sincronizarMutation = useMutation({
+    mutationFn: () => trpcClient.usuarios.sincronizarPrioridadeMedicoClick.mutate({ medicoId: doctorId }),
+    onSuccess: () => {
+      toast.success("Prioridade sincronizada com a Click!");
+      setTimeout(() => {
+        queryClient.invalidateQueries();
+      }, 2000);
+    },
+    onError: (error: { message: string }) => {
+      toast.error(`Erro ao sincronizar: ${error.message}`);
+    }
+  });
+
   const handleToggle = (checked: boolean) => {
     setLocalFaixaFixa(checked);
     mutation.mutate({
@@ -774,6 +787,24 @@ function FaixaFixaControl({
                 <AlertCircle className="h-3 w-3" />
                 Ao fixar, o score continuará sendo calculado mas não alterará a faixa.
               </p>
+              
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <Button
+                  onClick={() => sincronizarMutation.mutate()}
+                  disabled={sincronizarMutation.isPending}
+                  className="w-full bg-brand-600 hover:bg-brand-700 text-white"
+                >
+                  {sincronizarMutation.isPending ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  Sincronizar com Click
+                </Button>
+                <p className="text-xs text-slate-500 mt-2 text-center">
+                  Atualiza a prioridade deste médico no banco de dados da Click
+                </p>
+              </div>
             </div>
           </div>
         )}
