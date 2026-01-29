@@ -42,7 +42,10 @@ export const usuariosRouter = router({
           where,
           skip: (input.page - 1) * input.perPage,
           take: input.perPage,
-          orderBy: { [input.orderBy]: input.orderDir },
+          orderBy: [
+            { [input.orderBy]: input.orderDir },
+            { name: "asc" },
+          ],
           select: {
             id: true,
             name: true,
