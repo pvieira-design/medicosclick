@@ -435,7 +435,7 @@ export const medicoRouter = router({
      .query(async ({ input }) => {
        const medico = await prisma.user.findUnique({
          where: { id: input.medicoId },
-         select: { clickDoctorId: true },
+         select: { clickDoctorId: true, score: true, faixa: true },
        });
 
        if (!medico?.clickDoctorId) {
@@ -453,6 +453,25 @@ export const medicoRouter = router({
          return null;
        }
 
+       const todasMetricas = await clickQueries.getMetricasTodosMedicosPrimeiroLead(config.semanasCalculo);
+       
+       const conversoes = todasMetricas.map(m => m.taxa_conversao);
+       const tickets = todasMetricas.map(m => m.ticket_medio);
+       
+       const calcularPercentil = (valor: number, valores: number[]): number => {
+         if (valores.length === 0) return 0;
+         const sorted = [...valores].sort((a, b) => a - b);
+         const menoresOuIguais = sorted.filter(v => v <= valor).length;
+         return Math.round((menoresOuIguais / sorted.length) * 100);
+       };
+       
+       const percentilConversao = calcularPercentil(metricas.taxa_conversao, conversoes);
+       const percentilTicket = calcularPercentil(metricas.ticket_medio, tickets);
+       
+       const scoreCalculado = Math.round(
+         (percentilConversao * config.conversao) + (percentilTicket * config.ticketMedio)
+       );
+
        const periodoFim = new Date();
        const periodoInicio = new Date();
        periodoInicio.setDate(periodoInicio.getDate() - (config.semanasCalculo * 7));
@@ -469,6 +488,14 @@ export const medicoRouter = router({
          semanasCalculo: config.semanasCalculo,
          periodoInicio: periodoInicio.toISOString(),
          periodoFim: periodoFim.toISOString(),
+         percentilConversao,
+         percentilTicket,
+         pesoConversao: config.conversao,
+         pesoTicket: config.ticketMedio,
+         scoreCalculado,
+         scoreAtual: medico.score,
+         faixaAtual: medico.faixa,
+         totalMedicosComparacao: todasMetricas.length,
        };
      }),
 

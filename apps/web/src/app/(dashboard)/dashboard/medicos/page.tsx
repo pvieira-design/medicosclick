@@ -1354,6 +1354,75 @@ function MetricasPerformance({ doctorId }: { doctorId: string }) {
             />
        </div>
 
+       {metrics.percentilConversao !== undefined && metrics.percentilTicket !== undefined && (
+         <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
+           <div className="flex items-center gap-2 mb-4">
+             <Calculator className="h-4 w-4 text-slate-500" />
+             <h4 className="text-sm font-semibold text-slate-700">Como o Score é Calculado</h4>
+           </div>
+           
+           <div className="space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="bg-white rounded-lg border border-amber-100 p-4">
+                 <div className="flex items-center justify-between mb-2">
+                   <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Percentil Conversão</span>
+                   <span className="text-xs text-slate-400">Peso: {((metrics.pesoConversao ?? 0.66) * 100).toFixed(0)}%</span>
+                 </div>
+                 <div className="flex items-baseline gap-2">
+                   <span className="text-2xl font-bold text-amber-600">{metrics.percentilConversao}</span>
+                   <span className="text-sm text-slate-500">/ 100</span>
+                 </div>
+                 <p className="text-xs text-slate-500 mt-2">
+                   Sua conversão ({(metrics.taxaConversao * 100).toFixed(1)}%) é maior que {metrics.percentilConversao}% dos {metrics.totalMedicosComparacao} médicos
+                 </p>
+               </div>
+               
+               <div className="bg-white rounded-lg border border-violet-100 p-4">
+                 <div className="flex items-center justify-between mb-2">
+                   <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Percentil Ticket</span>
+                   <span className="text-xs text-slate-400">Peso: {((metrics.pesoTicket ?? 0.34) * 100).toFixed(0)}%</span>
+                 </div>
+                 <div className="flex items-baseline gap-2">
+                   <span className="text-2xl font-bold text-violet-600">{metrics.percentilTicket}</span>
+                   <span className="text-sm text-slate-500">/ 100</span>
+                 </div>
+                 <p className="text-xs text-slate-500 mt-2">
+                   Seu ticket ({metrics.ticketMedio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}) é maior que {metrics.percentilTicket}% dos médicos
+                 </p>
+               </div>
+             </div>
+
+             <div className="bg-slate-100 rounded-lg p-4">
+               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                 <div className="flex-1">
+                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Fórmula do Score</p>
+                   <div className="flex items-center gap-2 text-sm font-mono text-slate-700 flex-wrap">
+                     <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded">{metrics.percentilConversao}</span>
+                     <span>×</span>
+                     <span>{((metrics.pesoConversao ?? 0.66) * 100).toFixed(0)}%</span>
+                     <span>+</span>
+                     <span className="bg-violet-100 text-violet-700 px-2 py-0.5 rounded">{metrics.percentilTicket}</span>
+                     <span>×</span>
+                     <span>{((metrics.pesoTicket ?? 0.34) * 100).toFixed(0)}%</span>
+                     <span>=</span>
+                     <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">{metrics.scoreCalculado}</span>
+                   </div>
+                 </div>
+                 <div className="text-right">
+                   <p className="text-xs text-slate-500">Score Atual</p>
+                   <p className="text-2xl font-bold text-emerald-600">{metrics.scoreAtual ?? metrics.scoreCalculado}</p>
+                 </div>
+               </div>
+             </div>
+
+             <p className="text-xs text-slate-400 text-center">
+               O percentil indica em que posição o médico está comparado aos outros {metrics.totalMedicosComparacao} médicos ativos. 
+               Um percentil de 80 significa que o médico está melhor que 80% dos demais.
+             </p>
+           </div>
+         </div>
+       )}
+
     </div>
   )
 }
