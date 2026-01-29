@@ -269,6 +269,7 @@ export const clickQueries = {
           c.doctor_id,
           COUNT(DISTINCT c.id) AS total_consultas,
           COUNT(DISTINCT CASE WHEN pb.status = 'confirmed' THEN pb.id END) AS total_vendas,
+          COALESCE(SUM(CASE WHEN pb.status = 'confirmed' THEN pb.value END), 0) AS valor_produtos,
           COALESCE(SUM(CASE WHEN pb.status = 'confirmed' THEN pb.value + COALESCE(pb.delivery_value, 0) END), 0) AS valor_total
         FROM consultings c
         LEFT JOIN medical_prescriptions mp ON mp.consulting_id = c.id
@@ -286,7 +287,7 @@ export const clickQueries = {
         total_consultas::int,
         total_vendas::int,
         ROUND(CASE WHEN total_consultas > 0 THEN total_vendas::numeric / total_consultas ELSE 0 END, 4)::float AS taxa_conversao,
-        ROUND(CASE WHEN total_vendas > 0 THEN valor_total / total_vendas ELSE 0 END, 2)::float AS ticket_medio,
+        ROUND(CASE WHEN total_vendas > 0 THEN valor_produtos / total_vendas ELSE 0 END, 2)::float AS ticket_medio,
         ROUND(valor_total, 2)::float AS valor_total
       FROM metricas`,
       [doctorId]
@@ -299,6 +300,7 @@ export const clickQueries = {
           c.doctor_id,
           COUNT(DISTINCT c.id) AS total_consultas,
           COUNT(DISTINCT CASE WHEN pb.status = 'confirmed' THEN pb.id END) AS total_vendas,
+          COALESCE(SUM(CASE WHEN pb.status = 'confirmed' THEN pb.value END), 0) AS valor_produtos,
           COALESCE(SUM(CASE WHEN pb.status = 'confirmed' THEN pb.value + COALESCE(pb.delivery_value, 0) END), 0) AS valor_total
         FROM consultings c
         LEFT JOIN medical_prescriptions mp ON mp.consulting_id = c.id
@@ -315,7 +317,7 @@ export const clickQueries = {
         total_consultas::int,
         total_vendas::int,
         ROUND(CASE WHEN total_consultas > 0 THEN total_vendas::numeric / total_consultas ELSE 0 END, 4)::float AS taxa_conversao,
-        ROUND(CASE WHEN total_vendas > 0 THEN valor_total / total_vendas ELSE 0 END, 2)::float AS ticket_medio,
+        ROUND(CASE WHEN total_vendas > 0 THEN valor_produtos / total_vendas ELSE 0 END, 2)::float AS ticket_medio,
         ROUND(valor_total, 2)::float AS valor_total
       FROM metricas
       WHERE total_consultas > 0
@@ -371,6 +373,11 @@ export const clickQueries = {
             AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
           ) AS orcamentos_pagos,
           
+          COALESCE(SUM(pb.value) FILTER (
+            WHERE pb.status = 'confirmed' 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ), 0) AS valor_produtos,
+          
           COALESCE(SUM(pb.value + COALESCE(pb.delivery_value, 0)) FILTER (
             WHERE pb.status = 'confirmed' 
             AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
@@ -392,7 +399,7 @@ export const clickQueries = {
         ROUND(CASE WHEN consultas_com_receita > 0 
           THEN orcamentos_pagos::numeric / consultas_com_receita ELSE 0 END, 4)::float AS taxa_conversao,
         ROUND(CASE WHEN orcamentos_pagos > 0 
-          THEN faturamento / orcamentos_pagos ELSE 0 END, 2)::float AS ticket_medio,
+          THEN valor_produtos / orcamentos_pagos ELSE 0 END, 2)::float AS ticket_medio,
         ROUND(faturamento, 2)::float AS faturamento
       FROM metricas`,
       [doctorId]
@@ -447,6 +454,11 @@ export const clickQueries = {
             AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
           ) AS orcamentos_pagos,
           
+          COALESCE(SUM(pb.value) FILTER (
+            WHERE pb.status = 'confirmed' 
+            AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
+          ), 0) AS valor_produtos,
+          
           COALESCE(SUM(pb.value + COALESCE(pb.delivery_value, 0)) FILTER (
             WHERE pb.status = 'confirmed' 
             AND pc.start::timestamptz >= NOW() - INTERVAL '${semanas} weeks'
@@ -467,7 +479,7 @@ export const clickQueries = {
         ROUND(CASE WHEN consultas_com_receita > 0 
           THEN orcamentos_pagos::numeric / consultas_com_receita ELSE 0 END, 4)::float AS taxa_conversao,
         ROUND(CASE WHEN orcamentos_pagos > 0 
-          THEN faturamento / orcamentos_pagos ELSE 0 END, 2)::float AS ticket_medio,
+          THEN valor_produtos / orcamentos_pagos ELSE 0 END, 2)::float AS ticket_medio,
         ROUND(faturamento, 2)::float AS faturamento
       FROM metricas
       WHERE total_consultas_realizadas > 0
